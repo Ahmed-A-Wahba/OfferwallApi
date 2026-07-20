@@ -11,7 +11,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace OfferwallApi.Features.PartnerAuth;
 
-public static class ResendVerificationCode
+public static class ResendPartnerVerificationCode
 {
     public sealed record Command(
         string Email

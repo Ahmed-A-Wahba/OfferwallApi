@@ -5,5 +5,5 @@ namespace OfferwallApi.Infrastructure.Interfaces;
 public interface IPasswordHasher
 {
     Result<string> Hash(string password);
-    bool VerifyPassword(string password, string passwordHash);
+    bool Verify(string password, string passwordHash);
 }

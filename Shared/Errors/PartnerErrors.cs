@@ -38,4 +38,24 @@ public static class PartnerErrors
         Error.Validation(
             "Partner.EmailAlreadyVerified",
             "This email has already been verified.");
+
+    public static readonly Error VerificationCodeNotFound =
+        Error.Validation(
+            "Partner.VerificationCodeNotFound",
+            "No verification code found for this partner.");
+
+    public static readonly Error InvalidCredentials =
+        Error.Unauthorized(
+            "Partner.InvalidCredentials",
+            "Invalid email or password.");
+
+    public static readonly Error AccountPendingApproval =
+        Error.Unauthorized(
+            "Partner.AccountPendingApproval",
+            "Your account is pending approval. Please wait for confirmation.");
+
+    public static readonly Error InvalidRefreshToken =
+        Error.Unauthorized(
+            "Partner.InvalidRefreshToken",
+            "The refresh token is invalid or expired.");
 }

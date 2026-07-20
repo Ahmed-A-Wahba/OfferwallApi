@@ -1,5 +1,7 @@
+using System.Text.Json.Serialization;
 using Carter;
 using FluentValidation;
+using Microsoft.AspNetCore.Http.Json;
 using Microsoft.EntityFrameworkCore;
 using OfferwallApi.Infrastructure.Behaviors;
 using OfferwallApi.Infrastructure.Interfaces;
@@ -19,6 +21,13 @@ builder.Services.AddCarter();
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
+builder.Services.AddScoped<IJwtClaimsFactory, JwtClaimsFactory>();
+
+builder.Services.Configure<JwtOptions>(
+    builder.Configuration.GetSection(JwtOptions.SectionName));
+
+builder.Services.AddScoped<IJwtService, JwtService>();
+
 builder.Services.AddValidatorsFromAssembly(typeof(Program).Assembly, ServiceLifetime.Scoped);
 
 builder.Services.AddMediatR(cfg =>
@@ -32,6 +41,20 @@ builder.Services.AddMediatR(cfg =>
 });
 
 builder.Services.AddScoped<IPasswordHasher, PasswordHasher>();
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("CorsPolicy", policy =>
+    {
+        policy.AllowAnyOrigin()
+              .AllowAnyMethod()
+              .AllowAnyHeader();
+    });
+});
+
+builder.Services.ConfigureHttpJsonOptions(options =>
+{
+    options.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
+});
 
 builder.Services.AddSingleton<IApiKeyGenerator, ApiKeyGenerator>();
 
@@ -59,12 +82,8 @@ app.MapScalarApiReference(options =>
 
 app.MapCarter();
 
-
 app.UseHttpsRedirection();
 
-app.Run();
+app.UseCors("CorsPolicy");
 
-record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
-{
-    public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
-}
+app.Run();

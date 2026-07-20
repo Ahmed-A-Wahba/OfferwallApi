@@ -11,7 +11,7 @@ using Carter;
 
 namespace OfferwallApi.Features.PartnerAuth;
 
-public static class Register
+public static class PartnerRegister
 {
     public sealed record Command(
         string FullName,
@@ -150,7 +150,7 @@ public static class Register
     {
         public void AddRoutes(IEndpointRouteBuilder app)
         {
-            app.MapPost("/partners/register", async (Command command, ISender sender) =>
+            app.MapPost("/partners/auth/register", async (Command command, ISender sender) =>
                 {
                     var result = await sender.Send(command);
                     return result.ToHttpResponse();

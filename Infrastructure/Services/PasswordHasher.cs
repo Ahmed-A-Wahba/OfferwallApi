@@ -14,7 +14,7 @@ public partial class PasswordHasher : IPasswordHasher
             : Error.Validation("Password too weak", "Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, one number, and one special character.");
     }
 
-    public bool VerifyPassword(string password, string passwordHash)
+    public bool Verify(string password, string passwordHash)
     {
         return BCrypt.Net.BCrypt.EnhancedVerify(password, passwordHash);
     }

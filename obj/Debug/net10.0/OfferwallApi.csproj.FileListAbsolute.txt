@@ -163,6 +163,7 @@
 /home/ahmed/Documents/Repo/OfferwallApi/obj/Debug/net10.0/OfferwallApi.csproj.CoreCompileInputs.cache
 /home/ahmed/Documents/Repo/OfferwallApi/obj/Debug/net10.0/OfferwallApi.MvcApplicationPartsAssemblyInfo.cs
 /home/ahmed/Documents/Repo/OfferwallApi/obj/Debug/net10.0/OfferwallApi.MvcApplicationPartsAssemblyInfo.cache
+/home/ahmed/Documents/Repo/OfferwallApi/obj/Debug/net10.0/OfferwallApi.sourcelink.json
 /home/ahmed/Documents/Repo/OfferwallApi/obj/Debug/net10.0/rjimswa.dswa.cache.json
 /home/ahmed/Documents/Repo/OfferwallApi/obj/Debug/net10.0/rjsmrazor.dswa.cache.json
 /home/ahmed/Documents/Repo/OfferwallApi/obj/Debug/net10.0/rjsmcshtml.dswa.cache.json
