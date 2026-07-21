@@ -9,7 +9,7 @@ using OfferwallApi.Entities;
 using Carter;
 using MediatR;
 
-namespace OfferwallApi.Features.PartnerAuth;
+namespace OfferwallApi.Features.Partner.Auth;
 
 public static class PartnerLogin
 {

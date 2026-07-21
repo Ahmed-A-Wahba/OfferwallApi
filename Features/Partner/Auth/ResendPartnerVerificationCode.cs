@@ -9,7 +9,7 @@ using OfferwallApi.Shared.Entities;
 using OfferwallApi.Shared.Errors;
 using Microsoft.EntityFrameworkCore;
 
-namespace OfferwallApi.Features.PartnerAuth;
+namespace OfferwallApi.Features.Partner.Auth;
 
 public static class ResendPartnerVerificationCode
 {

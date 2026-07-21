@@ -1,4 +1,4 @@
-namespace OfferwallApi.Entities;
+namespace OfferwallApi.Shared.Entities;
 
 public sealed class WalletTransaction
 {

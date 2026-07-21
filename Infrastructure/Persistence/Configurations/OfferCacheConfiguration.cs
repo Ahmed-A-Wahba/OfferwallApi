@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
-using OfferwallApi.Entities;
+using OfferwallApi.Shared.Entities;
 
 namespace OfferwallApi.Infrastructure.Persistence.Configurations;
 
@@ -17,7 +17,7 @@ public sealed class OfferCacheConfiguration : IEntityTypeConfiguration<OfferCach
             .HasMaxLength(300)
             .IsRequired();
 
-        builder.Property(x => x.Logo)
+        builder.Property(x => x.LogoUrl)
             .HasMaxLength(500);
 
         builder.Property(x => x.TotalReward)

@@ -18,6 +18,10 @@ builder.Services.AddOpenApi();
 
 builder.Services.AddCarter();
 
+builder.Services.AddHttpContextAccessor();
+
+builder.Services.AddScoped<ICurrentUser, CurrentUser>();
+
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
@@ -35,6 +39,7 @@ builder.Services.AddMediatR(cfg =>
     cfg.RegisterServicesFromAssembly(typeof(Program).Assembly);
     cfg.AddOpenBehavior(typeof(LoggingBehavior<,>));
     cfg.AddOpenBehavior(typeof(ValidationBehavior<,>));
+    cfg.AddOpenBehavior(typeof(AuthorizationBehavior<,>));
     // cfg.AddOpenBehavior(typeof(DeviceFingerprintBlacklistBehavior<,>));
     // cfg.AddOpenBehavior(typeof(CachingBehavior<,>));
     // cfg.AddOpenBehavior(typeof(CacheInvalidationBehavior<,>));

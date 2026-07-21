@@ -1,4 +1,6 @@
-namespace OfferwallApi.Entities;
+using OfferwallApi.Entities;
+
+namespace OfferwallApi.Shared.Entities;
 
 public sealed class Conversion
 {

@@ -10,6 +10,8 @@ public sealed class Partner
 
     public string CompanyName { get; set; } = null!;
 
+    public string? LogoUrl { get; set; }
+
     public string? WebsiteUrl { get; set; }
 
     public StoreCategory StoreCategory { get; set; } = StoreCategory.Other;
@@ -37,6 +39,8 @@ public sealed class Partner
     public string? Currency { get; set; } = null!;
 
     public Country CountryCode { get; set; } = Country.Other;
+
+    public bool HasChargebacks { get; set; }
 
     public bool IsActive { get; set; } = true;
 

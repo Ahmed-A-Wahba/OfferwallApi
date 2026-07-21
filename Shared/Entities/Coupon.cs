@@ -1,6 +1,6 @@
-using OfferwallApi.Shared.Entities;
+using OfferwallApi.Entities;
 
-namespace OfferwallApi.Entities;
+namespace OfferwallApi.Shared.Entities;
 
 public sealed class Coupon
 {

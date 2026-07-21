@@ -9,7 +9,7 @@ using OfferwallApi.Infrastructure.Persistence;
 using OfferwallApi.Infrastructure.Results;
 using OfferwallApi.Shared.Errors;
 
-namespace OfferwallApi.Features.PartnerAuth;
+namespace OfferwallApi.Features.Partner.Auth;
 
 public static class RefreshPartnerToken
 {

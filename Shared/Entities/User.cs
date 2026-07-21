@@ -1,6 +1,4 @@
-using OfferwallApi.Shared.Entities;
-
-namespace OfferwallApi.Entities;
+namespace OfferwallApi.Shared.Entities;
 
 public sealed class User
 {

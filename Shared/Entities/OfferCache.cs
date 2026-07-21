@@ -1,4 +1,4 @@
-namespace OfferwallApi.Entities;
+namespace OfferwallApi.Shared.Entities;
 
 public sealed class OfferCache
 {
@@ -6,7 +6,7 @@ public sealed class OfferCache
 
     public string Name { get; set; } = null!;
 
-    public string Logo { get; set; } = null!;
+    public string LogoUrl { get; set; } = null!;
 
     public decimal TotalReward { get; set; }
 

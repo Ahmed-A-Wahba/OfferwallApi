@@ -8,7 +8,7 @@ using OfferwallApi.Infrastructure.Results;
 using OfferwallApi.Shared.Entities;
 using OfferwallApi.Shared.Errors;
 
-namespace OfferwallApi.Infrastructure.Interfaces;
+namespace OfferwallApi.Features.Partner.Auth;
 
 public static class VerifyPartnerEmail
 {

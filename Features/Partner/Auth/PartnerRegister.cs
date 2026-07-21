@@ -9,7 +9,7 @@ using OfferwallApi.Shared.Errors;
 using MediatR;
 using Carter;
 
-namespace OfferwallApi.Features.PartnerAuth;
+namespace OfferwallApi.Features.Partner.Auth;
 
 public static class PartnerRegister
 {
@@ -107,7 +107,7 @@ public static class PartnerRegister
                 return Result.Failure(hashResult.Error);
             }
 
-            var partner = new Partner
+            var partner = new Shared.Entities.Partner
             {
                 PartnerId = Guid.CreateVersion7(),
 

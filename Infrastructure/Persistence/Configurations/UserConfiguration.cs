@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
-using OfferwallApi.Entities;
+using OfferwallApi.Shared.Entities;
 
 namespace OfferwallApi.Infrastructure.Persistence.Configurations;
 
