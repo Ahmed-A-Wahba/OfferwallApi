@@ -1,7 +1,6 @@
 using System.Text.Json.Serialization;
 using Carter;
 using FluentValidation;
-using Microsoft.AspNetCore.Http.Json;
 using Microsoft.EntityFrameworkCore;
 using OfferwallApi.Infrastructure.Behaviors;
 using OfferwallApi.Infrastructure.Interfaces;
@@ -9,8 +8,45 @@ using OfferwallApi.Infrastructure.Options;
 using OfferwallApi.Infrastructure.Persistence;
 using OfferwallApi.Infrastructure.Services;
 using Scalar.AspNetCore;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
+using System.IdentityModel.Tokens.Jwt;
+using Microsoft.IdentityModel.JsonWebTokens;
 
 var builder = WebApplication.CreateBuilder(args);
+
+JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
+JsonWebTokenHandler.DefaultInboundClaimTypeMap.Clear();
+
+var jwtSection = builder.Configuration.GetSection(JwtOptions.SectionName);
+
+builder.Services.Configure<JwtOptions>(jwtSection);
+
+var jwtOptions = jwtSection.Get<JwtOptions>()!;
+
+builder.Services
+    .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateIssuerSigningKey = true,
+            ValidateLifetime = true,
+
+            ValidIssuer = jwtOptions.Issuer,
+            ValidAudience = jwtOptions.Audience,
+
+            IssuerSigningKey = new SymmetricSecurityKey(
+                Encoding.UTF8.GetBytes(jwtOptions.Secret)),
+
+            ClockSkew = TimeSpan.Zero
+        };
+    });
+
+builder.Services.AddAuthorization();
 
 // Add services to the container.
 
@@ -85,10 +121,15 @@ app.MapScalarApiReference(options =>
     options.DefaultHttpClient = new(ScalarTarget.CSharp, ScalarClient.HttpClient);
 });
 
-app.MapCarter();
-
 app.UseHttpsRedirection();
 
 app.UseCors("CorsPolicy");
+
+app.UseAuthentication();
+app.UseAuthorization();
+
+app.MapCarter();
+
+
 
 app.Run();

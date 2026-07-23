@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using OfferwallApi.Infrastructure.Persistence;
 
@@ -11,9 +12,11 @@ using OfferwallApi.Infrastructure.Persistence;
 namespace OfferwallApi.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260721150407_AddPartnerLogoAndChargebacks")]
+    partial class AddPartnerLogoAndChargebacks
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -84,6 +87,45 @@ namespace OfferwallApi.Infrastructure.Persistence.Migrations
                         .IsUnique();
 
                     b.ToTable("PartnerRefreshTokens");
+                });
+
+            modelBuilder.Entity("OfferwallApi.Entities.Payout", b =>
+                {
+                    b.Property<Guid>("PayoutId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<DateTime?>("PaidAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("PartnerId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("PeriodEnd")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.HasKey("PayoutId");
+
+                    b.HasIndex("PartnerId");
+
+                    b.ToTable("Payouts");
                 });
 
             modelBuilder.Entity("OfferwallApi.Shared.Entities.Admin", b =>
@@ -466,51 +508,6 @@ namespace OfferwallApi.Infrastructure.Persistence.Migrations
                     b.ToTable("PartnerVerificationCodes");
                 });
 
-            modelBuilder.Entity("OfferwallApi.Shared.Entities.Payout", b =>
-                {
-                    b.Property<Guid>("PayoutId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<decimal>("Amount")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime>("ExpectedPayoutDate")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Notes")
-                        .HasMaxLength(1000)
-                        .HasColumnType("nvarchar(1000)");
-
-                    b.Property<DateTime?>("PaidAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid>("PartnerId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTime>("PeriodEnd")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime>("PeriodStart")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int>("RedemptionCount")
-                        .HasColumnType("int");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("int");
-
-                    b.HasKey("PayoutId");
-
-                    b.HasIndex("PartnerId");
-
-                    b.ToTable("Payouts");
-                });
-
             modelBuilder.Entity("OfferwallApi.Shared.Entities.SupportTicket", b =>
                 {
                     b.Property<Guid>("TicketId")
@@ -662,6 +659,17 @@ namespace OfferwallApi.Infrastructure.Persistence.Migrations
                     b.Navigation("Partner");
                 });
 
+            modelBuilder.Entity("OfferwallApi.Entities.Payout", b =>
+                {
+                    b.HasOne("OfferwallApi.Shared.Entities.Partner", "Partner")
+                        .WithMany("Payouts")
+                        .HasForeignKey("PartnerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Partner");
+                });
+
             modelBuilder.Entity("OfferwallApi.Shared.Entities.AdminVerificationCode", b =>
                 {
                     b.HasOne("OfferwallApi.Shared.Entities.Admin", "Admin")
@@ -720,17 +728,6 @@ namespace OfferwallApi.Infrastructure.Persistence.Migrations
                         .WithMany("VerificationCodes")
                         .HasForeignKey("PartnerId")
                         .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Partner");
-                });
-
-            modelBuilder.Entity("OfferwallApi.Shared.Entities.Payout", b =>
-                {
-                    b.HasOne("OfferwallApi.Shared.Entities.Partner", "Partner")
-                        .WithMany("Payouts")
-                        .HasForeignKey("PartnerId")
-                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.Navigation("Partner");

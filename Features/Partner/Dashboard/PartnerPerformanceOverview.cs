@@ -12,6 +12,7 @@ namespace OfferwallApi.Features.Partner.Dashboard;
 
 public static class PartnerPerformanceOverview
 {
+    [Authorize(Role = "Partner")]
     public sealed record Query(
         DateOnly From,
         DateOnly To
@@ -45,7 +46,6 @@ public static class PartnerPerformanceOverview
         }
     }
 
-    [Authorize(Role = "Partner")]
     internal sealed class Handler(
     ApplicationDbContext dbContext,
     ICurrentUser currentUser)
@@ -65,12 +65,20 @@ public static class PartnerPerformanceOverview
                     x.PartnerId == partnerId &&
                     x.CreatedAt >= from &&
                     x.CreatedAt <= to)
-                .GroupBy(x => DateOnly.FromDateTime(x.CreatedAt))
-                .Select(g => new ChartPoint(
-                    g.Key,
-                    g.Count()))
+                .GroupBy(x => x.CreatedAt.Date)
+                .Select(g => new
+                {
+                    Date = g.Key,
+                    Count = g.Count()
+                })
                 .OrderBy(x => x.Date)
                 .ToListAsync(cancellationToken);
+
+            var generatedChart = generated
+                .Select(x => new ChartPoint(
+                    DateOnly.FromDateTime(x.Date),
+                    x.Count))
+                .ToList();
 
             var redeemed = await dbContext.Coupons
                 .Where(x =>
@@ -78,16 +86,24 @@ public static class PartnerPerformanceOverview
                     x.RedeemedAt != null &&
                     x.RedeemedAt >= from &&
                     x.RedeemedAt <= to)
-                .GroupBy(x => DateOnly.FromDateTime(x.RedeemedAt!.Value))
-                .Select(g => new ChartPoint(
-                    g.Key,
-                    g.Count()))
+                .GroupBy(x => x.RedeemedAt!.Value.Date)
+                .Select(g => new
+                {
+                    Date = g.Key,
+                    Count = g.Count()
+                })
                 .OrderBy(x => x.Date)
                 .ToListAsync(cancellationToken);
 
+            var redeemedChart = redeemed
+                .Select(x => new ChartPoint(
+                    DateOnly.FromDateTime(x.Date),
+                    x.Count))
+                .ToList();
+
             return new Response(
-                generated,
-                redeemed);
+                generatedChart,
+                redeemedChart);
         }
     }
 
@@ -104,8 +120,7 @@ public static class PartnerPerformanceOverview
                     var result = await sender.Send(query);
 
                     return result.ToHttpResponse();
-                })
-                .RequireAuthorization();
+                });
         }
     }
 }

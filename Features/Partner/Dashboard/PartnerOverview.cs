@@ -1,6 +1,5 @@
 using Carter;
 using MediatR;
-using OfferwallApi.Entities;
 using OfferwallApi.Infrastructure.Interfaces;
 using OfferwallApi.Infrastructure.Messaging;
 using OfferwallApi.Infrastructure.Persistence;
@@ -13,6 +12,7 @@ namespace OfferwallApi.Features.Partner.Dashboard;
 
 public static class PartnerOverview
 {
+    [Authorize(Role = "Partner")]
     public sealed record Query : IQuery<Result<Response>>;
 
     public sealed record Response(
@@ -26,7 +26,6 @@ public static class PartnerOverview
         decimal Chargebacks
     );
 
-    [Authorize(Role = "Partner")]
     internal sealed class Handler(
     ApplicationDbContext dbContext,
     ICurrentUser currentUser)
@@ -120,8 +119,7 @@ public static class PartnerOverview
                     var result = await sender.Send(new Query());
 
                     return result.ToHttpResponse();
-                })
-                .RequireAuthorization();
+                });
         }
     }
 }

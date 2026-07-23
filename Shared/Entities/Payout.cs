@@ -1,6 +1,4 @@
-using OfferwallApi.Shared.Entities;
-
-namespace OfferwallApi.Entities;
+namespace OfferwallApi.Shared.Entities;
 
 public sealed class Payout
 {
@@ -9,6 +7,10 @@ public sealed class Payout
     public Guid PartnerId { get; set; }
 
     public decimal Amount { get; set; }
+
+    public int RedemptionCount { get; set; }
+
+    public DateTime ExpectedPayoutDate { get; set; }
 
     public DateTime PeriodStart { get; set; }
 

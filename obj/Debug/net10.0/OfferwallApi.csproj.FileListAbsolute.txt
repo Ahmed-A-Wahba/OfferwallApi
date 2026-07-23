@@ -19,6 +19,7 @@
 /home/ahmed/Documents/Repo/OfferwallApi/bin/Debug/net10.0/MediatR.dll
 /home/ahmed/Documents/Repo/OfferwallApi/bin/Debug/net10.0/MediatR.Contracts.dll
 /home/ahmed/Documents/Repo/OfferwallApi/bin/Debug/net10.0/MediatR.Extensions.Microsoft.DependencyInjection.dll
+/home/ahmed/Documents/Repo/OfferwallApi/bin/Debug/net10.0/Microsoft.AspNetCore.Authentication.JwtBearer.dll
 /home/ahmed/Documents/Repo/OfferwallApi/bin/Debug/net10.0/Microsoft.AspNetCore.OpenApi.dll
 /home/ahmed/Documents/Repo/OfferwallApi/bin/Debug/net10.0/Microsoft.Bcl.AsyncInterfaces.dll
 /home/ahmed/Documents/Repo/OfferwallApi/bin/Debug/net10.0/Microsoft.Bcl.Cryptography.dll

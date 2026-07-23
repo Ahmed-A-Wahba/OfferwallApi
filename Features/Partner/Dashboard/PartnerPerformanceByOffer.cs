@@ -13,6 +13,7 @@ namespace OfferwallApi.Features.Partner.Dashboard;
 
 public static class PartnerPerformanceByOffer
 {
+    [Authorize(Role = "Partner")]
     public sealed record Query(
         DateOnly From,
         DateOnly To,
@@ -60,7 +61,6 @@ public static class PartnerPerformanceByOffer
         }
     }
 
-    [Authorize(Role = "Partner")]
     internal sealed class Handler(
     ApplicationDbContext dbContext,
     ICurrentUser currentUser)
@@ -144,14 +144,13 @@ public static class PartnerPerformanceByOffer
             app.MapGet(
                 "/partners/dashboard/performance-by-offer",
                 async (
-                    Query query,
+                    [AsParameters] Query query,
                     ISender sender) =>
                 {
                     var result = await sender.Send(query);
 
                     return result.ToHttpResponse();
-                })
-                .RequireAuthorization();
+                });
         }
     }
 }

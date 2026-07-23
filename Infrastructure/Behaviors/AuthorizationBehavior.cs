@@ -9,8 +9,7 @@ namespace OfferwallApi.Infrastructure.Behaviors;
 
 public class AuthorizationBehavior<TRequest, TResponse>(ICurrentUser currentUser)
     : IPipelineBehavior<TRequest, TResponse>
-        where TRequest : ICommand<TResponse>
-        where TResponse : Result
+    where TRequest : notnull
 {
     public async Task<TResponse> Handle(
         TRequest request,
