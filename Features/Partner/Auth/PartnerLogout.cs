@@ -55,9 +55,9 @@ public static class PartnerLogout
         {
             app.MapPost(
                 "/partners/logout",
-                async (Command command, ISender sender) =>
+                async (Command command, ISender sender, CancellationToken cancellationToken) =>
                 {
-                    var result = await sender.Send(command);
+                    var result = await sender.Send(command, cancellationToken);
 
                     return result.ToHttpResponse();
                 })

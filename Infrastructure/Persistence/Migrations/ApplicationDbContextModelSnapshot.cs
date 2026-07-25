@@ -322,9 +322,21 @@ namespace OfferwallApi.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<string>("AccountHolderAddress")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("AccountHolderName")
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("AccountName")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("AccountNumber")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("AccountType")
+                        .HasColumnType("int");
 
                     b.Property<string>("AllowedIframeOrigin")
                         .HasMaxLength(255)
@@ -343,6 +355,15 @@ namespace OfferwallApi.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("ContactEmail")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ContactFullName")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ContactPhoneNumber")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<int>("CountryCode")
                         .HasColumnType("int");
@@ -380,6 +401,9 @@ namespace OfferwallApi.Infrastructure.Persistence.Migrations
                         .HasColumnType("bit")
                         .HasDefaultValue(false);
 
+                    b.Property<string>("LegalName")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("LogoUrl")
                         .HasColumnType("nvarchar(max)");
 
@@ -390,9 +414,24 @@ namespace OfferwallApi.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<int>("PayoutMethod")
+                        .HasColumnType("int");
+
+                    b.Property<string>("PhoneNumber")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<int>("PointsPerUsd")
                         .HasPrecision(18, 2)
                         .HasColumnType("int");
+
+                    b.Property<string>("RegisteredAddress")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("RegistrationNumber")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("RoutingNumber")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<int>("StoreCategory")
                         .HasColumnType("int");
@@ -400,6 +439,21 @@ namespace OfferwallApi.Infrastructure.Persistence.Migrations
                     b.Property<string>("SwiftCode")
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("TaxRegistrationNumber")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("TaxResidencyCountry")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("TaxResidencyCountryCode")
+                        .HasColumnType("int");
+
+                    b.Property<string>("TradingName")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("TransferType")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("datetime2");

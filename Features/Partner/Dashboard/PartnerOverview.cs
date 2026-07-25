@@ -38,22 +38,33 @@ public static class PartnerOverview
             var partnerId = currentUser.UserId;
 
             var partner = await dbContext.Partners
+                .AsNoTracking()
                 .FirstOrDefaultAsync(
                     x => x.PartnerId == partnerId,
                     cancellationToken);
 
+            if (partner is null)
+            {
+                return Error.NotFound(
+                    "Partner.NotFound",
+                    "The partner was not found.");
+            }
+
             var couponsGenerated = await dbContext.Coupons
+                .AsNoTracking()
                 .CountAsync(
                     x => x.PartnerId == partnerId,
                     cancellationToken);
 
             var couponsRedeemed = await dbContext.Coupons
+                .AsNoTracking()
                 .CountAsync(
                     x => x.PartnerId == partnerId &&
                          x.Status == CouponStatus.Redeemed,
                     cancellationToken);
 
             var totalPaid = await dbContext.Payouts
+                .AsNoTracking()
                 .Where(x =>
                     x.PartnerId == partnerId &&
                     x.Status == PayoutStatus.Paid)
@@ -66,16 +77,18 @@ public static class PartnerOverview
                 DateTime.UtcNow.Month,
                 1);
 
-            var totalInThisMonth = await dbContext.WalletTransactions
+            var totalInThisMonth = await dbContext.Payouts
+                .AsNoTracking()
                 .Where(x =>
-                    x.User.PartnerId == partnerId &&
-                    x.Type == WalletTransactionType.CouponRedeem &&
-                    x.CreatedAt >= monthStart)
+                    x.PartnerId == partnerId &&
+                    x.Status == PayoutStatus.Paid &&
+                    x.PaidAt >= monthStart)
                 .SumAsync(
                     x => (decimal?)x.Amount,
                     cancellationToken) ?? 0;
 
             var pendingSettlements = await dbContext.Payouts
+                .AsNoTracking()
                 .Where(x =>
                     x.PartnerId == partnerId &&
                     x.Status == PayoutStatus.Pending)
@@ -85,9 +98,10 @@ public static class PartnerOverview
 
             decimal chargebacks = 0m;
 
-            if (partner!.HasChargebacks)
+            if (partner.HasChargebacks)
             {
                 chargebacks = await dbContext.Conversions
+                    .AsNoTracking()
                     .Where(x =>
                         x.User.PartnerId == partnerId &&
                         x.Type == ConversionType.Chargeback)

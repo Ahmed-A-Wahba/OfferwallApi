@@ -16,25 +16,8 @@ public static class PartnerPerformanceByOffer
     [Authorize(Role = "Partner")]
     public sealed record Query(
         DateOnly From,
-        DateOnly To,
-        OfferPerformanceSortBy SortBy = OfferPerformanceSortBy.Revenue,
-        SortDirection SortDirection = SortDirection.Descending
+        DateOnly To
     ) : IQuery<Result<Response>>;
-
-    public enum OfferPerformanceSortBy
-    {
-        Revenue,
-        Generated,
-        Redeemed,
-        ConversionRate,
-        OfferName
-    }
-
-    public enum SortDirection
-    {
-        Ascending,
-        Descending
-    }
 
     public sealed record Response(
         IReadOnlyList<OfferPerformanceItem> Offers

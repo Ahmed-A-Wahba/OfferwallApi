@@ -6,58 +6,71 @@ public sealed class Partner
 {
     public Guid PartnerId { get; set; }
 
+    // Contact Person
     public string FullName { get; set; } = null!;
+    public string Email { get; set; } = null!;
+    public string? PhoneNumber { get; set; }
 
+    // Company
     public string CompanyName { get; set; } = null!;
+    public string? LegalName { get; set; }
+    public string? TradingName { get; set; }
+    public string? RegistrationNumber { get; set; }
+    public string? RegisteredAddress { get; set; }
+    public string? TaxRegistrationNumber { get; set; }
+    public Country TaxResidencyCountry { get; set; } = Country.Other;
 
+
+    public Country CountryCode { get; set; } = Country.Other;
+    public Country? TaxResidencyCountryCode { get; set; }
+
+    // Branding
     public string? LogoUrl { get; set; }
-
     public string? WebsiteUrl { get; set; }
 
     public StoreCategory StoreCategory { get; set; } = StoreCategory.Other;
-
     public int MonthlyActiveUsers { get; set; }
 
-    public string Email { get; set; } = null!;
-
+    // Authentication
     public string PasswordHash { get; set; } = null!;
-
     public string ApiKey { get; set; } = null!;
-
     public string? AllowedIframeOrigin { get; set; }
 
+    // Offerwall
     public int PointsPerUsd { get; set; }
 
+    // Payment
     public string? AccountHolderName { get; set; }
-
+    public string? AccountName { get; set; }
     public string? BankName { get; set; }
-
     public string? Iban { get; set; }
-
     public string? SwiftCode { get; set; }
+    public string? Currency { get; set; }
+    public PayoutMethod PayoutMethod { get; set; }
+    public string? TransferType { get; set; }
+    public string? RoutingNumber { get; set; }
+    public string? AccountNumber { get; set; }
+    public AccountType AccountType { get; set; }
+    public string? AccountHolderAddress { get; set; }
 
-    public string? Currency { get; set; } = null!;
+    // Contact Person
+    public string? ContactFullName { get; set; }
 
-    public Country CountryCode { get; set; } = Country.Other;
+    public string? ContactEmail { get; set; }
+
+    public string? ContactPhoneNumber { get; set; }
 
     public bool HasChargebacks { get; set; }
-
     public bool IsActive { get; set; } = true;
-
     public bool IsEmailVerified { get; set; }
 
     public DateTime CreatedAt { get; set; }
-
     public DateTime UpdatedAt { get; set; }
 
     public ICollection<User> Users { get; set; } = [];
-
     public ICollection<Payout> Payouts { get; set; } = [];
-
     public ICollection<Coupon> Coupons { get; set; } = [];
-
     public ICollection<PartnerRefreshToken> RefreshTokens { get; set; } = [];
-
     public ICollection<PartnerVerificationCode> VerificationCodes { get; set; } = [];
 }
 
@@ -139,4 +152,15 @@ public enum Country
     LS,
     SZ,
     Other
+}
+
+public enum PayoutMethod
+{
+    BankTransfer = 1
+}
+
+public enum AccountType
+{
+    Personal = 1,
+    Business = 2
 }

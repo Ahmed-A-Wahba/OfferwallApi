@@ -77,10 +77,9 @@ public static class PartnerRegister
                         if (!Uri.TryCreate(origin, UriKind.Absolute, out var uri))
                             return false;
 
-                        return uri.Scheme == Uri.UriSchemeHttps
-                               || uri.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase);
+                        return uri.Scheme == Uri.UriSchemeHttps;
                     })
-                    .WithMessage("Allowed iframe origin must be a valid HTTPS URL or localhost.");
+                    .WithMessage("Allowed iframe origin must be a valid HTTPS URL");
             });
         }
     }
@@ -150,9 +149,10 @@ public static class PartnerRegister
     {
         public void AddRoutes(IEndpointRouteBuilder app)
         {
-            app.MapPost("/partners/auth/register", async (Command command, ISender sender) =>
+            app.MapPost("/partners/auth/register",
+             async (Command command, ISender sender, CancellationToken cancellationToken) =>
                 {
-                    var result = await sender.Send(command);
+                    var result = await sender.Send(command, cancellationToken);
                     return result.ToHttpResponse();
                 });
         }

@@ -14,7 +14,5 @@ public sealed class PartnerRefreshToken
 
     public DateTime CreatedAt { get; set; }
 
-    public DateTime? RevokedAt { get; set; }
-
     public Partner Partner { get; set; } = null!;
 }

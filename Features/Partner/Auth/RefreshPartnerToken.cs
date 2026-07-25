@@ -51,9 +51,6 @@ public static class RefreshPartnerToken
             if (refreshToken is null)
                 return PartnerErrors.InvalidRefreshToken;
 
-            if (refreshToken.RevokedAt is not null)
-                return PartnerErrors.InvalidRefreshToken;
-
             if (refreshToken.ExpiresAt <= DateTime.UtcNow)
                 return PartnerErrors.InvalidRefreshToken;
 
@@ -65,7 +62,7 @@ public static class RefreshPartnerToken
             if (!partner.IsActive)
                 return PartnerErrors.AccountPendingApproval;
 
-            refreshToken.RevokedAt = DateTime.UtcNow;
+            dbContext.PartnerRefreshTokens.Remove(refreshToken);
 
             var newRefreshToken = jwtService.GenerateRefreshToken();
 

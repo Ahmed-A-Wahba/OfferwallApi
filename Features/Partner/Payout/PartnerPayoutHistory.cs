@@ -6,6 +6,7 @@ using OfferwallApi.Infrastructure.Authorization;
 using OfferwallApi.Infrastructure.Interfaces;
 using OfferwallApi.Infrastructure.Messaging;
 using OfferwallApi.Infrastructure.Persistence;
+using OfferwallApi.Infrastructure.Results;
 using OfferwallApi.Shared.Entities;
 
 namespace OfferwallApi.Features.Partner.Payout;
@@ -16,7 +17,7 @@ public static class PartnerPayoutHistory
     public sealed record Query(
         int Page = 1,
         int PageSize = 10
-    ) : IQuery<Response>;
+    ) : IQuery<Result<Response>>;
 
     public sealed record Response(
         IReadOnlyList<PayoutItem> Items,
@@ -47,9 +48,9 @@ public static class PartnerPayoutHistory
     internal sealed class Handler(
     ApplicationDbContext context,
     ICurrentUser currentUser)
-    : IQueryHandler<Query, Response>
+    : IQueryHandler<Query, Result<Response>>
     {
-        public async Task<Response> Handle(
+        public async Task<Result<Response>> Handle(
             Query request,
             CancellationToken cancellationToken)
         {

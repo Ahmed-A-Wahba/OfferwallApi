@@ -33,7 +33,7 @@ public static class PartnerLogin
                 .EmailAddress();
 
             RuleFor(x => x.Password)
-    .NotEmpty();
+                .NotEmpty();
         }
     }
 
@@ -92,9 +92,9 @@ public static class PartnerLogin
         {
             app.MapPost(
                 "/partner/auth/login",
-                async (Command command, ISender sender) =>
+                async (Command command, ISender sender, CancellationToken cancellationToken) =>
                 {
-                    var result = await sender.Send(command);
+                    var result = await sender.Send(command, cancellationToken);
                     return result.ToHttpResponse();
                 });
         }

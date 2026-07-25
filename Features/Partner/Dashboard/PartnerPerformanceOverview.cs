@@ -115,9 +115,10 @@ public static class PartnerPerformanceOverview
                 "/partners/dashboard/performance-overview",
                 async (
                     [AsParameters] Query query,
-                    ISender sender) =>
+                    ISender sender,
+                    CancellationToken cancellationToken) =>
                 {
-                    var result = await sender.Send(query);
+                    var result = await sender.Send(query, cancellationToken);
 
                     return result.ToHttpResponse();
                 });

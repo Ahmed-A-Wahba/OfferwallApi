@@ -12,6 +12,7 @@
 /home/ahmed/Documents/Repo/OfferwallApi/bin/Debug/net10.0/BouncyCastle.Cryptography.dll
 /home/ahmed/Documents/Repo/OfferwallApi/bin/Debug/net10.0/Carter.dll
 /home/ahmed/Documents/Repo/OfferwallApi/bin/Debug/net10.0/Carter.Analyzers.dll
+/home/ahmed/Documents/Repo/OfferwallApi/bin/Debug/net10.0/CloudinaryDotNet.dll
 /home/ahmed/Documents/Repo/OfferwallApi/bin/Debug/net10.0/FluentValidation.dll
 /home/ahmed/Documents/Repo/OfferwallApi/bin/Debug/net10.0/FluentValidation.DependencyInjectionExtensions.dll
 /home/ahmed/Documents/Repo/OfferwallApi/bin/Debug/net10.0/Humanizer.dll
@@ -36,16 +37,7 @@
 /home/ahmed/Documents/Repo/OfferwallApi/bin/Debug/net10.0/Microsoft.EntityFrameworkCore.Design.dll
 /home/ahmed/Documents/Repo/OfferwallApi/bin/Debug/net10.0/Microsoft.EntityFrameworkCore.Relational.dll
 /home/ahmed/Documents/Repo/OfferwallApi/bin/Debug/net10.0/Microsoft.EntityFrameworkCore.SqlServer.dll
-/home/ahmed/Documents/Repo/OfferwallApi/bin/Debug/net10.0/Microsoft.Extensions.Caching.Abstractions.dll
-/home/ahmed/Documents/Repo/OfferwallApi/bin/Debug/net10.0/Microsoft.Extensions.Caching.Memory.dll
-/home/ahmed/Documents/Repo/OfferwallApi/bin/Debug/net10.0/Microsoft.Extensions.Configuration.Abstractions.dll
-/home/ahmed/Documents/Repo/OfferwallApi/bin/Debug/net10.0/Microsoft.Extensions.DependencyInjection.dll
-/home/ahmed/Documents/Repo/OfferwallApi/bin/Debug/net10.0/Microsoft.Extensions.DependencyInjection.Abstractions.dll
 /home/ahmed/Documents/Repo/OfferwallApi/bin/Debug/net10.0/Microsoft.Extensions.DependencyModel.dll
-/home/ahmed/Documents/Repo/OfferwallApi/bin/Debug/net10.0/Microsoft.Extensions.Logging.dll
-/home/ahmed/Documents/Repo/OfferwallApi/bin/Debug/net10.0/Microsoft.Extensions.Logging.Abstractions.dll
-/home/ahmed/Documents/Repo/OfferwallApi/bin/Debug/net10.0/Microsoft.Extensions.Options.dll
-/home/ahmed/Documents/Repo/OfferwallApi/bin/Debug/net10.0/Microsoft.Extensions.Primitives.dll
 /home/ahmed/Documents/Repo/OfferwallApi/bin/Debug/net10.0/Microsoft.Identity.Client.dll
 /home/ahmed/Documents/Repo/OfferwallApi/bin/Debug/net10.0/Microsoft.Identity.Client.Extensions.Msal.dll
 /home/ahmed/Documents/Repo/OfferwallApi/bin/Debug/net10.0/Microsoft.IdentityModel.Abstractions.dll

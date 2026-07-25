@@ -10,8 +10,6 @@ public sealed class Payout
 
     public int RedemptionCount { get; set; }
 
-    public DateTime ExpectedPayoutDate { get; set; }
-
     public DateTime PeriodStart { get; set; }
 
     public DateTime PeriodEnd { get; set; }

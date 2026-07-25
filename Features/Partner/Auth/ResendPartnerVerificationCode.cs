@@ -76,9 +76,9 @@ public static class ResendPartnerVerificationCode
         {
             app.MapPost(
                 "/partner/auth/resend-code",
-                async (Command command, ISender sender) =>
+                async (Command command, ISender sender, CancellationToken cancellationToken) =>
                 {
-                    var result = await sender.Send(command);
+                    var result = await sender.Send(command, cancellationToken);
                     return result.ToHttpResponse();
                 });
         }
