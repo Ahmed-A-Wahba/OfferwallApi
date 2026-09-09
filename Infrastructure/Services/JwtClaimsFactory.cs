@@ -50,4 +50,30 @@ public sealed class JwtClaimsFactory : IJwtClaimsFactory
                 "Admin")
         ];
     }
+
+    public Claim[] Create(User user)
+    {
+        return
+        [
+            new(
+            JwtRegisteredClaimNames.Sub,
+            user.UserId.ToString()),
+
+        new(
+            "partner_id",
+            user.PartnerId.ToString()),
+
+        new(
+            "external_user_id",
+            user.ExternalUserId),
+
+        new(
+            JwtRegisteredClaimNames.Jti,
+            Guid.CreateVersion7().ToString()),
+
+        new(
+            ClaimTypes.Role,
+            "User")
+        ];
+    }
 }

@@ -2,11 +2,11 @@ using Carter;
 using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-using OfferwallApi.Entities;
 using OfferwallApi.Infrastructure.Interfaces;
 using OfferwallApi.Infrastructure.Messaging;
 using OfferwallApi.Infrastructure.Persistence;
 using OfferwallApi.Infrastructure.Results;
+using OfferwallApi.Shared.Entities;
 using OfferwallApi.Shared.Errors;
 
 namespace OfferwallApi.Features.Partner.Auth;

@@ -18,6 +18,8 @@ public sealed class User
 
     public Wallet Wallet { get; set; } = null!;
 
+    public ICollection<UserRefreshToken> RefreshTokens { get; set; } = [];
+
     public ICollection<Conversion> Conversions { get; set; } = [];
 
     public ICollection<Coupon> Coupons { get; set; } = [];

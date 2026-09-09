@@ -12,10 +12,11 @@ public sealed class AdminVerificationCodeConfiguration
         builder.HasKey(x => x.VerificationCodeId);
 
         builder.Property(x => x.Code)
-            .HasMaxLength(10)
+            .HasMaxLength(6)
             .IsRequired();
 
         builder.Property(x => x.Type)
+            .HasConversion<int>()
             .IsRequired();
 
         builder.Property(x => x.AttemptCount)
@@ -32,7 +33,8 @@ public sealed class AdminVerificationCodeConfiguration
         builder.HasIndex(x => new
         {
             x.AdminId,
-            x.Type
+            x.Type,
+            x.Code
         });
 
         builder.HasOne(x => x.Admin)

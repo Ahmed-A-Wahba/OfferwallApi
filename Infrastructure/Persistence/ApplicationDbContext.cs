@@ -1,5 +1,4 @@
 using Microsoft.EntityFrameworkCore;
-using OfferwallApi.Entities;
 using OfferwallApi.Shared.Entities;
 
 namespace OfferwallApi.Infrastructure.Persistence;
@@ -17,6 +16,11 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
     public DbSet<User> Users { get; set; }
     public DbSet<SupportTicket> SupportTickets { get; set; }
     public DbSet<OfferCache> OfferCaches { get; set; }
+    public DbSet<UserRefreshToken> UserRefreshTokens { get; set; }
+    public DbSet<Wallet> Wallets { get; set; }
+    public DbSet<AdminVerificationCode> AdminVerificationCodes { get; set; }
+    public DbSet<Admin> Admins { get; set; }
+    public DbSet<AdminRefreshToken> AdminRefreshTokens { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

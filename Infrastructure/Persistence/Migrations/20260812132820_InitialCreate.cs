@@ -27,12 +27,12 @@ namespace OfferwallApi.Infrastructure.Persistence.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "OfferCache",
+                name: "OfferCaches",
                 columns: table => new
                 {
                     OfferId = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
                     Name = table.Column<string>(type: "nvarchar(300)", maxLength: 300, nullable: false),
-                    Logo = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: false),
+                    LogoUrl = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: false),
                     TotalReward = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
                     TotalTasks = table.Column<int>(type: "int", nullable: false),
                     IsActive = table.Column<bool>(type: "bit", nullable: false),
@@ -40,7 +40,7 @@ namespace OfferwallApi.Infrastructure.Persistence.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_OfferCache", x => x.OfferId);
+                    table.PrimaryKey("PK_OfferCaches", x => x.OfferId);
                 });
 
             migrationBuilder.CreateTable(
@@ -49,25 +49,46 @@ namespace OfferwallApi.Infrastructure.Persistence.Migrations
                 {
                     PartnerId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     FullName = table.Column<string>(type: "nvarchar(150)", maxLength: 150, nullable: false),
+                    Email = table.Column<string>(type: "nvarchar(255)", maxLength: 255, nullable: false),
+                    PhoneNumber = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     CompanyName = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
+                    LegalName = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    TradingName = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    RegistrationNumber = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    RegisteredAddress = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    TaxRegistrationNumber = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    TaxResidencyCountry = table.Column<int>(type: "int", nullable: false),
+                    CountryCode = table.Column<int>(type: "int", nullable: false),
+                    TaxResidencyCountryCode = table.Column<int>(type: "int", nullable: true),
+                    LogoUrl = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     WebsiteUrl = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: true),
                     StoreCategory = table.Column<int>(type: "int", nullable: false),
                     MonthlyActiveUsers = table.Column<int>(type: "int", nullable: false),
-                    Email = table.Column<string>(type: "nvarchar(255)", maxLength: 255, nullable: false),
                     PasswordHash = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     ApiKey = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
                     AllowedIframeOrigin = table.Column<string>(type: "nvarchar(255)", maxLength: 255, nullable: true),
                     PointsPerUsd = table.Column<int>(type: "int", precision: 18, scale: 2, nullable: false),
                     AccountHolderName = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: true),
+                    AccountName = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     BankName = table.Column<string>(type: "nvarchar(150)", maxLength: 150, nullable: true),
                     Iban = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: true),
                     SwiftCode = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: true),
                     Currency = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    CountryCode = table.Column<int>(type: "int", nullable: false),
+                    PayoutMethod = table.Column<int>(type: "int", nullable: false),
+                    TransferType = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    RoutingNumber = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    AccountNumber = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    AccountType = table.Column<int>(type: "int", nullable: false),
+                    AccountHolderAddress = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    ContactFullName = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    ContactEmail = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    ContactPhoneNumber = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    HasChargebacks = table.Column<bool>(type: "bit", nullable: false),
                     IsActive = table.Column<bool>(type: "bit", nullable: false, defaultValue: true),
                     IsEmailVerified = table.Column<bool>(type: "bit", nullable: false, defaultValue: false),
                     CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
+                    UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    RevenueShareRatio = table.Column<decimal>(type: "decimal(18,2)", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -122,21 +143,20 @@ namespace OfferwallApi.Infrastructure.Persistence.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "PartnerRefreshToken",
+                name: "PartnerRefreshTokens",
                 columns: table => new
                 {
                     RefreshTokenId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     PartnerId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     Token = table.Column<string>(type: "nvarchar(450)", nullable: false),
                     ExpiresAt = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    RevokedAt = table.Column<DateTime>(type: "datetime2", nullable: true)
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_PartnerRefreshToken", x => x.RefreshTokenId);
+                    table.PrimaryKey("PK_PartnerRefreshTokens", x => x.RefreshTokenId);
                     table.ForeignKey(
-                        name: "FK_PartnerRefreshToken_Partners_PartnerId",
+                        name: "FK_PartnerRefreshTokens_Partners_PartnerId",
                         column: x => x.PartnerId,
                         principalTable: "Partners",
                         principalColumn: "PartnerId",
@@ -169,12 +189,13 @@ namespace OfferwallApi.Infrastructure.Persistence.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "Payout",
+                name: "Payouts",
                 columns: table => new
                 {
                     PayoutId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     PartnerId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     Amount = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
+                    RedemptionCount = table.Column<int>(type: "int", nullable: false),
                     PeriodStart = table.Column<DateTime>(type: "datetime2", nullable: false),
                     PeriodEnd = table.Column<DateTime>(type: "datetime2", nullable: false),
                     Status = table.Column<int>(type: "int", nullable: false),
@@ -184,9 +205,9 @@ namespace OfferwallApi.Infrastructure.Persistence.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_Payout", x => x.PayoutId);
+                    table.PrimaryKey("PK_Payouts", x => x.PayoutId);
                     table.ForeignKey(
-                        name: "FK_Payout_Partners_PartnerId",
+                        name: "FK_Payouts_Partners_PartnerId",
                         column: x => x.PartnerId,
                         principalTable: "Partners",
                         principalColumn: "PartnerId",
@@ -194,7 +215,7 @@ namespace OfferwallApi.Infrastructure.Persistence.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "User",
+                name: "Users",
                 columns: table => new
                 {
                     UserId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
@@ -206,9 +227,9 @@ namespace OfferwallApi.Infrastructure.Persistence.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_User", x => x.UserId);
+                    table.PrimaryKey("PK_Users", x => x.UserId);
                     table.ForeignKey(
-                        name: "FK_User_Partners_PartnerId",
+                        name: "FK_Users_Partners_PartnerId",
                         column: x => x.PartnerId,
                         principalTable: "Partners",
                         principalColumn: "PartnerId",
@@ -216,7 +237,7 @@ namespace OfferwallApi.Infrastructure.Persistence.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "Click",
+                name: "Clicks",
                 columns: table => new
                 {
                     ClickId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
@@ -227,17 +248,17 @@ namespace OfferwallApi.Infrastructure.Persistence.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_Click", x => x.ClickId);
+                    table.PrimaryKey("PK_Clicks", x => x.ClickId);
                     table.ForeignKey(
-                        name: "FK_Click_User_UserId",
+                        name: "FK_Clicks_Users_UserId",
                         column: x => x.UserId,
-                        principalTable: "User",
+                        principalTable: "Users",
                         principalColumn: "UserId",
                         onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateTable(
-                name: "Conversion",
+                name: "Conversions",
                 columns: table => new
                 {
                     ConversionId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
@@ -251,17 +272,17 @@ namespace OfferwallApi.Infrastructure.Persistence.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_Conversion", x => x.ConversionId);
+                    table.PrimaryKey("PK_Conversions", x => x.ConversionId);
                     table.ForeignKey(
-                        name: "FK_Conversion_User_UserId",
+                        name: "FK_Conversions_Users_UserId",
                         column: x => x.UserId,
-                        principalTable: "User",
+                        principalTable: "Users",
                         principalColumn: "UserId",
                         onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateTable(
-                name: "Coupon",
+                name: "Coupons",
                 columns: table => new
                 {
                     CouponId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
@@ -279,23 +300,23 @@ namespace OfferwallApi.Infrastructure.Persistence.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_Coupon", x => x.CouponId);
+                    table.PrimaryKey("PK_Coupons", x => x.CouponId);
                     table.ForeignKey(
-                        name: "FK_Coupon_Partners_PartnerId",
+                        name: "FK_Coupons_Partners_PartnerId",
                         column: x => x.PartnerId,
                         principalTable: "Partners",
                         principalColumn: "PartnerId",
                         onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
-                        name: "FK_Coupon_User_UserId",
+                        name: "FK_Coupons_Users_UserId",
                         column: x => x.UserId,
-                        principalTable: "User",
+                        principalTable: "Users",
                         principalColumn: "UserId",
                         onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateTable(
-                name: "SupportTicket",
+                name: "SupportTickets",
                 columns: table => new
                 {
                     TicketId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
@@ -310,11 +331,32 @@ namespace OfferwallApi.Infrastructure.Persistence.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_SupportTicket", x => x.TicketId);
+                    table.PrimaryKey("PK_SupportTickets", x => x.TicketId);
                     table.ForeignKey(
-                        name: "FK_SupportTicket_User_UserId",
+                        name: "FK_SupportTickets_Users_UserId",
                         column: x => x.UserId,
-                        principalTable: "User",
+                        principalTable: "Users",
+                        principalColumn: "UserId",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "UserRefreshTokens",
+                columns: table => new
+                {
+                    RefreshTokenId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    UserId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Token = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    ExpiresAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_UserRefreshTokens", x => x.RefreshTokenId);
+                    table.ForeignKey(
+                        name: "FK_UserRefreshTokens_Users_UserId",
+                        column: x => x.UserId,
+                        principalTable: "Users",
                         principalColumn: "UserId",
                         onDelete: ReferentialAction.Cascade);
                 });
@@ -332,15 +374,15 @@ namespace OfferwallApi.Infrastructure.Persistence.Migrations
                 {
                     table.PrimaryKey("PK_Wallet", x => x.UserId);
                     table.ForeignKey(
-                        name: "FK_Wallet_User_UserId",
+                        name: "FK_Wallet_Users_UserId",
                         column: x => x.UserId,
-                        principalTable: "User",
+                        principalTable: "Users",
                         principalColumn: "UserId",
                         onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateTable(
-                name: "WalletTransaction",
+                name: "WalletTransactions",
                 columns: table => new
                 {
                     TransactionId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
@@ -353,21 +395,21 @@ namespace OfferwallApi.Infrastructure.Persistence.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_WalletTransaction", x => x.TransactionId);
+                    table.PrimaryKey("PK_WalletTransactions", x => x.TransactionId);
                     table.ForeignKey(
-                        name: "FK_WalletTransaction_Conversion_ConversionId",
+                        name: "FK_WalletTransactions_Conversions_ConversionId",
                         column: x => x.ConversionId,
-                        principalTable: "Conversion",
+                        principalTable: "Conversions",
                         principalColumn: "ConversionId");
                     table.ForeignKey(
-                        name: "FK_WalletTransaction_Coupon_CouponId",
+                        name: "FK_WalletTransactions_Coupons_CouponId",
                         column: x => x.CouponId,
-                        principalTable: "Coupon",
+                        principalTable: "Coupons",
                         principalColumn: "CouponId");
                     table.ForeignKey(
-                        name: "FK_WalletTransaction_User_UserId",
+                        name: "FK_WalletTransactions_Users_UserId",
                         column: x => x.UserId,
-                        principalTable: "User",
+                        principalTable: "Users",
                         principalColumn: "UserId",
                         onDelete: ReferentialAction.Cascade);
                 });
@@ -400,39 +442,39 @@ namespace OfferwallApi.Infrastructure.Persistence.Migrations
                 columns: new[] { "AdminId", "Type" });
 
             migrationBuilder.CreateIndex(
-                name: "IX_Click_UserId",
-                table: "Click",
+                name: "IX_Clicks_UserId",
+                table: "Clicks",
                 column: "UserId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Conversion_UserId",
-                table: "Conversion",
+                name: "IX_Conversions_UserId",
+                table: "Conversions",
                 column: "UserId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Coupon_Code",
-                table: "Coupon",
+                name: "IX_Coupons_Code",
+                table: "Coupons",
                 column: "Code",
                 unique: true);
 
             migrationBuilder.CreateIndex(
-                name: "IX_Coupon_PartnerId",
-                table: "Coupon",
+                name: "IX_Coupons_PartnerId",
+                table: "Coupons",
                 column: "PartnerId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Coupon_UserId",
-                table: "Coupon",
+                name: "IX_Coupons_UserId",
+                table: "Coupons",
                 column: "UserId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_PartnerRefreshToken_PartnerId",
-                table: "PartnerRefreshToken",
+                name: "IX_PartnerRefreshTokens_PartnerId",
+                table: "PartnerRefreshTokens",
                 column: "PartnerId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_PartnerRefreshToken_Token",
-                table: "PartnerRefreshToken",
+                name: "IX_PartnerRefreshTokens_Token",
+                table: "PartnerRefreshTokens",
                 column: "Token",
                 unique: true);
 
@@ -466,34 +508,45 @@ namespace OfferwallApi.Infrastructure.Persistence.Migrations
                 columns: new[] { "PartnerId", "Type", "Code" });
 
             migrationBuilder.CreateIndex(
-                name: "IX_Payout_PartnerId",
-                table: "Payout",
+                name: "IX_Payouts_PartnerId",
+                table: "Payouts",
                 column: "PartnerId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_SupportTicket_UserId",
-                table: "SupportTicket",
+                name: "IX_SupportTickets_UserId",
+                table: "SupportTickets",
                 column: "UserId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_User_PartnerId_ExternalUserId",
-                table: "User",
+                name: "IX_UserRefreshTokens_Token",
+                table: "UserRefreshTokens",
+                column: "Token",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_UserRefreshTokens_UserId",
+                table: "UserRefreshTokens",
+                column: "UserId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Users_PartnerId_ExternalUserId",
+                table: "Users",
                 columns: new[] { "PartnerId", "ExternalUserId" },
                 unique: true);
 
             migrationBuilder.CreateIndex(
-                name: "IX_WalletTransaction_ConversionId",
-                table: "WalletTransaction",
+                name: "IX_WalletTransactions_ConversionId",
+                table: "WalletTransactions",
                 column: "ConversionId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_WalletTransaction_CouponId",
-                table: "WalletTransaction",
+                name: "IX_WalletTransactions_CouponId",
+                table: "WalletTransactions",
                 column: "CouponId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_WalletTransaction_UserId",
-                table: "WalletTransaction",
+                name: "IX_WalletTransactions_UserId",
+                table: "WalletTransactions",
                 column: "UserId");
         }
 
@@ -507,40 +560,43 @@ namespace OfferwallApi.Infrastructure.Persistence.Migrations
                 name: "AdminVerificationCode");
 
             migrationBuilder.DropTable(
-                name: "Click");
+                name: "Clicks");
 
             migrationBuilder.DropTable(
-                name: "OfferCache");
+                name: "OfferCaches");
 
             migrationBuilder.DropTable(
-                name: "PartnerRefreshToken");
+                name: "PartnerRefreshTokens");
 
             migrationBuilder.DropTable(
                 name: "PartnerVerificationCodes");
 
             migrationBuilder.DropTable(
-                name: "Payout");
+                name: "Payouts");
 
             migrationBuilder.DropTable(
-                name: "SupportTicket");
+                name: "SupportTickets");
+
+            migrationBuilder.DropTable(
+                name: "UserRefreshTokens");
 
             migrationBuilder.DropTable(
                 name: "Wallet");
 
             migrationBuilder.DropTable(
-                name: "WalletTransaction");
+                name: "WalletTransactions");
 
             migrationBuilder.DropTable(
                 name: "Admin");
 
             migrationBuilder.DropTable(
-                name: "Conversion");
+                name: "Conversions");
 
             migrationBuilder.DropTable(
-                name: "Coupon");
+                name: "Coupons");
 
             migrationBuilder.DropTable(
-                name: "User");
+                name: "Users");
 
             migrationBuilder.DropTable(
                 name: "Partners");

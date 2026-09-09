@@ -18,6 +18,7 @@ public static class GetPartnerCompany
     public sealed record Response(
     string? LegalName,
     string? TradingName,
+    string? IframeOrigin,
     string? RegistrationNumber,
     Country CountryCode,
     string? RegisteredAddress,
@@ -45,6 +46,7 @@ public static class GetPartnerCompany
                 .Select(x => new Response(
                     x.LegalName,
                     x.TradingName,
+                    x.AllowedIframeOrigin,
                     x.RegistrationNumber,
                     x.CountryCode,
                     x.RegisteredAddress,

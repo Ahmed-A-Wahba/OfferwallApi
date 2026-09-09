@@ -13,7 +13,6 @@ using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using System.IdentityModel.Tokens.Jwt;
 using Microsoft.IdentityModel.JsonWebTokens;
-using CloudinaryDotNet;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -83,6 +82,9 @@ builder.Services.AddMediatR(cfg =>
 });
 
 builder.Services.AddScoped<IPasswordHasher, PasswordHasher>();
+
+builder.Services.AddScoped<IUserLocationService, UserLocationService>();
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("CorsPolicy", policy =>
@@ -112,9 +114,23 @@ builder.Services.AddScoped<IEmailSender, EmailSender>();
 
 builder.Services.AddScoped<IVerificationCodeService, VerificationCodeService>();
 
+builder.Services.Configure<KlinkOptions>(
+    builder.Configuration.GetSection(KlinkOptions.SectionName));
+
+builder.Services.AddHttpClient<IKlinkApiClient, KlinkApiClient>();
+
 
 
 var app = builder.Build();
+
+using (var scope = app.Services.CreateScope())
+{
+    var services = scope.ServiceProvider;
+    var dbContext = services.GetRequiredService<ApplicationDbContext>();
+    var passwordHasher = services.GetRequiredService<IPasswordHasher>();
+
+    await DbInitializer.SeedAdminAsync(dbContext, passwordHasher);
+}
 
 // Configure the HTTP request pipeline.
 

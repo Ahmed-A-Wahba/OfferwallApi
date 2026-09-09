@@ -29,5 +29,7 @@ public enum WalletTransactionType
     CouponRedeem = 2,
     Chargeback = 3,
     ManualAdjustment = 4,
-    Bonus = 5
+    Bonus = 5,
+    CouponCreation = 6,
+    CouponCancellation = 7
 }

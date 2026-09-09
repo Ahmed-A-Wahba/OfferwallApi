@@ -17,6 +17,7 @@ public static class UpdatePartnerCompany
     public sealed record Command(
         string? LegalName,
         string? TradingName,
+        string? IframeOrigin,
         string? RegistrationNumber,
         Country CountryCode,
         string? RegisteredAddress,
@@ -38,6 +39,9 @@ public static class UpdatePartnerCompany
 
             RuleFor(x => x.TradingName)
                 .MaximumLength(200);
+
+            RuleFor(x => x.IframeOrigin)
+                .MaximumLength(255);
 
             RuleFor(x => x.RegistrationNumber)
                 .MaximumLength(100);
@@ -87,6 +91,7 @@ public static class UpdatePartnerCompany
 
             partner.LegalName = request.LegalName?.Trim();
             partner.TradingName = request.TradingName?.Trim();
+            partner.AllowedIframeOrigin = request.IframeOrigin?.Trim();
             partner.RegistrationNumber = request.RegistrationNumber?.Trim();
             partner.CountryCode = request.CountryCode;
             partner.RegisteredAddress = request.RegisteredAddress?.Trim();

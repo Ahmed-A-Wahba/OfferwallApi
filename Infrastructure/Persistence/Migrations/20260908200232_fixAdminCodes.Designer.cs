@@ -12,8 +12,8 @@ using OfferwallApi.Infrastructure.Persistence;
 namespace OfferwallApi.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20260723120323_AddPartner1")]
-    partial class AddPartner1
+    [Migration("20260908200232_fixAdminCodes")]
+    partial class fixAdminCodes
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -24,70 +24,6 @@ namespace OfferwallApi.Infrastructure.Persistence.Migrations
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
-
-            modelBuilder.Entity("OfferwallApi.Entities.AdminRefreshToken", b =>
-                {
-                    b.Property<Guid>("RefreshTokenId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid>("AdminId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime>("ExpiresAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime?>("RevokedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Token")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(450)");
-
-                    b.HasKey("RefreshTokenId");
-
-                    b.HasIndex("AdminId");
-
-                    b.HasIndex("Token")
-                        .IsUnique();
-
-                    b.ToTable("AdminRefreshToken");
-                });
-
-            modelBuilder.Entity("OfferwallApi.Entities.PartnerRefreshToken", b =>
-                {
-                    b.Property<Guid>("RefreshTokenId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime>("ExpiresAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid>("PartnerId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTime?>("RevokedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Token")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(450)");
-
-                    b.HasKey("RefreshTokenId");
-
-                    b.HasIndex("PartnerId");
-
-                    b.HasIndex("Token")
-                        .IsUnique();
-
-                    b.ToTable("PartnerRefreshTokens");
-                });
 
             modelBuilder.Entity("OfferwallApi.Shared.Entities.Admin", b =>
                 {
@@ -115,7 +51,39 @@ namespace OfferwallApi.Infrastructure.Persistence.Migrations
                     b.HasIndex("Email")
                         .IsUnique();
 
-                    b.ToTable("Admin");
+                    b.ToTable("Admins");
+                });
+
+            modelBuilder.Entity("OfferwallApi.Shared.Entities.AdminRefreshToken", b =>
+                {
+                    b.Property<Guid>("RefreshTokenId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("AdminId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("RevokedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Token")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("RefreshTokenId");
+
+                    b.HasIndex("AdminId");
+
+                    b.HasIndex("Token")
+                        .IsUnique();
+
+                    b.ToTable("AdminRefreshTokens");
                 });
 
             modelBuilder.Entity("OfferwallApi.Shared.Entities.AdminVerificationCode", b =>
@@ -134,8 +102,8 @@ namespace OfferwallApi.Infrastructure.Persistence.Migrations
 
                     b.Property<string>("Code")
                         .IsRequired()
-                        .HasMaxLength(10)
-                        .HasColumnType("nvarchar(10)");
+                        .HasMaxLength(6)
+                        .HasColumnType("nvarchar(6)");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
@@ -158,7 +126,7 @@ namespace OfferwallApi.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("AdminId", "Type");
 
-                    b.ToTable("AdminVerificationCode");
+                    b.ToTable("AdminVerificationCodes");
                 });
 
             modelBuilder.Entity("OfferwallApi.Shared.Entities.Click", b =>
@@ -182,6 +150,8 @@ namespace OfferwallApi.Infrastructure.Persistence.Migrations
                         .HasColumnType("uniqueidentifier");
 
                     b.HasKey("ClickId");
+
+                    b.HasIndex("OfferId");
 
                     b.HasIndex("UserId");
 
@@ -221,6 +191,8 @@ namespace OfferwallApi.Infrastructure.Persistence.Migrations
                         .HasColumnType("uniqueidentifier");
 
                     b.HasKey("ConversionId");
+
+                    b.HasIndex("OfferId");
 
                     b.HasIndex("UserId");
 
@@ -433,6 +405,9 @@ namespace OfferwallApi.Infrastructure.Persistence.Migrations
                     b.Property<string>("RegistrationNumber")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<decimal>("RevenueShareRatio")
+                        .HasColumnType("decimal(18,2)");
+
                     b.Property<string>("RoutingNumber")
                         .HasColumnType("nvarchar(max)");
 
@@ -478,6 +453,35 @@ namespace OfferwallApi.Infrastructure.Persistence.Migrations
                         .IsUnique();
 
                     b.ToTable("Partners");
+                });
+
+            modelBuilder.Entity("OfferwallApi.Shared.Entities.PartnerRefreshToken", b =>
+                {
+                    b.Property<Guid>("RefreshTokenId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("PartnerId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Token")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("RefreshTokenId");
+
+                    b.HasIndex("PartnerId");
+
+                    b.HasIndex("Token")
+                        .IsUnique();
+
+                    b.ToTable("PartnerRefreshTokens");
                 });
 
             modelBuilder.Entity("OfferwallApi.Shared.Entities.PartnerVerificationCode", b =>
@@ -534,9 +538,6 @@ namespace OfferwallApi.Infrastructure.Persistence.Migrations
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime>("ExpectedPayoutDate")
                         .HasColumnType("datetime2");
 
                     b.Property<string>("Notes")
@@ -641,6 +642,35 @@ namespace OfferwallApi.Infrastructure.Persistence.Migrations
                     b.ToTable("Users");
                 });
 
+            modelBuilder.Entity("OfferwallApi.Shared.Entities.UserRefreshToken", b =>
+                {
+                    b.Property<Guid>("RefreshTokenId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Token")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("RefreshTokenId");
+
+                    b.HasIndex("Token")
+                        .IsUnique();
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("UserRefreshTokens");
+                });
+
             modelBuilder.Entity("OfferwallApi.Shared.Entities.Wallet", b =>
                 {
                     b.Property<Guid>("UserId")
@@ -658,7 +688,7 @@ namespace OfferwallApi.Infrastructure.Persistence.Migrations
 
                     b.HasKey("UserId");
 
-                    b.ToTable("Wallet");
+                    b.ToTable("Wallets");
                 });
 
             modelBuilder.Entity("OfferwallApi.Shared.Entities.WalletTransaction", b =>
@@ -697,7 +727,7 @@ namespace OfferwallApi.Infrastructure.Persistence.Migrations
                     b.ToTable("WalletTransactions");
                 });
 
-            modelBuilder.Entity("OfferwallApi.Entities.AdminRefreshToken", b =>
+            modelBuilder.Entity("OfferwallApi.Shared.Entities.AdminRefreshToken", b =>
                 {
                     b.HasOne("OfferwallApi.Shared.Entities.Admin", "Admin")
                         .WithMany("RefreshTokens")
@@ -706,17 +736,6 @@ namespace OfferwallApi.Infrastructure.Persistence.Migrations
                         .IsRequired();
 
                     b.Navigation("Admin");
-                });
-
-            modelBuilder.Entity("OfferwallApi.Entities.PartnerRefreshToken", b =>
-                {
-                    b.HasOne("OfferwallApi.Shared.Entities.Partner", "Partner")
-                        .WithMany("RefreshTokens")
-                        .HasForeignKey("PartnerId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Partner");
                 });
 
             modelBuilder.Entity("OfferwallApi.Shared.Entities.AdminVerificationCode", b =>
@@ -732,22 +751,38 @@ namespace OfferwallApi.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("OfferwallApi.Shared.Entities.Click", b =>
                 {
+                    b.HasOne("OfferwallApi.Shared.Entities.OfferCache", "OfferCache")
+                        .WithMany()
+                        .HasForeignKey("OfferId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.HasOne("OfferwallApi.Shared.Entities.User", "User")
                         .WithMany("Clicks")
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.Navigation("OfferCache");
+
                     b.Navigation("User");
                 });
 
             modelBuilder.Entity("OfferwallApi.Shared.Entities.Conversion", b =>
                 {
+                    b.HasOne("OfferwallApi.Shared.Entities.OfferCache", "OfferCache")
+                        .WithMany()
+                        .HasForeignKey("OfferId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.HasOne("OfferwallApi.Shared.Entities.User", "User")
                         .WithMany("Conversions")
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("OfferCache");
 
                     b.Navigation("User");
                 });
@@ -769,6 +804,17 @@ namespace OfferwallApi.Infrastructure.Persistence.Migrations
                     b.Navigation("Partner");
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("OfferwallApi.Shared.Entities.PartnerRefreshToken", b =>
+                {
+                    b.HasOne("OfferwallApi.Shared.Entities.Partner", "Partner")
+                        .WithMany("RefreshTokens")
+                        .HasForeignKey("PartnerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Partner");
                 });
 
             modelBuilder.Entity("OfferwallApi.Shared.Entities.PartnerVerificationCode", b =>
@@ -813,6 +859,17 @@ namespace OfferwallApi.Infrastructure.Persistence.Migrations
                         .IsRequired();
 
                     b.Navigation("Partner");
+                });
+
+            modelBuilder.Entity("OfferwallApi.Shared.Entities.UserRefreshToken", b =>
+                {
+                    b.HasOne("OfferwallApi.Shared.Entities.User", "User")
+                        .WithMany("RefreshTokens")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("OfferwallApi.Shared.Entities.Wallet", b =>
@@ -888,6 +945,8 @@ namespace OfferwallApi.Infrastructure.Persistence.Migrations
                     b.Navigation("Conversions");
 
                     b.Navigation("Coupons");
+
+                    b.Navigation("RefreshTokens");
 
                     b.Navigation("SupportTickets");
 

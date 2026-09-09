@@ -17,5 +17,10 @@ public sealed class ClickConfiguration : IEntityTypeConfiguration<Click>
         builder.HasOne(x => x.User)
             .WithMany(x => x.Clicks)
             .HasForeignKey(x => x.UserId);
+
+        builder.HasOne(x => x.OfferCache)
+            .WithMany()
+            .HasForeignKey(x => x.OfferId)
+            .IsRequired();
     }
 }

@@ -22,4 +22,7 @@ public sealed class CurrentUser(
 
     public string Role =>
         _user!.FindFirstValue(ClaimTypes.Role)!;
+
+    public Guid PartnerId =>
+        Guid.Parse(_user!.FindFirstValue("partner_id")!);
 }

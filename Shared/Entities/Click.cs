@@ -13,6 +13,7 @@ public sealed class Click
     public DateTime CreatedAt { get; set; }
 
     public User User { get; set; } = null!;
+    public OfferCache OfferCache { get; set; } = null!;
 }
 
 public enum ClickStatus

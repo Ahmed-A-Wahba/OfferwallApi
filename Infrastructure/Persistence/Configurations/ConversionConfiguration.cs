@@ -23,5 +23,10 @@ public sealed class ConversionConfiguration : IEntityTypeConfiguration<Conversio
         builder.HasMany(x => x.WalletTransactions)
             .WithOne(x => x.Conversion)
             .HasForeignKey(x => x.ConversionId);
+
+        builder.HasOne(x => x.OfferCache)
+            .WithMany()
+            .HasForeignKey(x => x.OfferId)
+            .IsRequired();
     }
 }

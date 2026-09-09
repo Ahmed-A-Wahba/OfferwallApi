@@ -5,9 +5,9 @@ using OfferwallApi.Infrastructure.Persistence;
 using OfferwallApi.Infrastructure.Results;
 using Microsoft.EntityFrameworkCore;
 using OfferwallApi.Shared.Errors;
-using OfferwallApi.Entities;
 using Carter;
 using MediatR;
+using OfferwallApi.Shared.Entities;
 
 namespace OfferwallApi.Features.Partner.Auth;
 

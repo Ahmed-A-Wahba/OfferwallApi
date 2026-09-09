@@ -54,6 +54,9 @@ public sealed class PartnerConfiguration : IEntityTypeConfiguration<Partner>
             .HasPrecision(18, 2)
             .IsRequired();
 
+        builder.Property(x => x.RevenueShareRatio)
+            .HasPrecision(18, 4);
+
         builder.Property(x => x.AccountHolderName)
             .HasMaxLength(200);
 

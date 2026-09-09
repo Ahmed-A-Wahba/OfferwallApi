@@ -1,5 +1,3 @@
-using OfferwallApi.Entities;
-
 namespace OfferwallApi.Shared.Entities;
 
 public sealed class Conversion
@@ -23,6 +21,7 @@ public sealed class Conversion
     public User User { get; set; } = null!;
 
     public ICollection<WalletTransaction> WalletTransactions { get; set; } = [];
+    public OfferCache OfferCache { get; set; } = null!;
 }
 
 public enum ConversionType
@@ -35,5 +34,6 @@ public enum CouponStatus
 {
     Active = 1,
     Redeemed = 2,
-    Expired = 3
+    Expired = 3,
+    Cancelled = 4
 }

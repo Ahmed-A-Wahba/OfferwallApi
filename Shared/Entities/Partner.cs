@@ -1,5 +1,3 @@
-using OfferwallApi.Entities;
-
 namespace OfferwallApi.Shared.Entities;
 
 public sealed class Partner
@@ -66,6 +64,8 @@ public sealed class Partner
 
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
+
+    public decimal RevenueShareRatio { get; set; } = 0.8m;
 
     public ICollection<User> Users { get; set; } = [];
     public ICollection<Payout> Payouts { get; set; } = [];

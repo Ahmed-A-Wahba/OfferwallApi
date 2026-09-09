@@ -8,4 +8,6 @@ public interface IJwtClaimsFactory
     Claim[] Create(Partner partner);
 
     Claim[] Create(Admin admin);
+
+    Claim[] Create(User user);
 }
