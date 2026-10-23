@@ -58,7 +58,7 @@ public static class InitUserDashboard
                 .FirstOrDefaultAsync(p => p.PartnerId == request.PubId, cancellationToken);
 
             if (partner is null
-                || !partner.IsActive
+                || partner.Status != PublisherStatus.Active
                 || !partner.IsEmailVerified
                 || !IsOriginAllowed(request.RequestOrigin, partner.AllowedIframeOrigin))
             {

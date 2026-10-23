@@ -7,6 +7,7 @@ using OfferwallApi.Infrastructure.Messaging;
 using OfferwallApi.Infrastructure.Persistence;
 using OfferwallApi.Infrastructure.Results;
 using OfferwallApi.Shared.Entities;
+using OfferwallApi.Shared.Errors;
 
 namespace OfferwallApi.Features.Partner.Auth;
 
@@ -36,8 +37,19 @@ public static class SendPartnerForgotPasswordCode
             var partner = await dbContext.Partners
                 .FirstOrDefaultAsync(p => p.Email == request.Email, cancellationToken);
 
-            if (partner is not null && partner.IsActive)
+            if (partner is not null && partner.Status == PublisherStatus.Active)
             {
+                var hasActiveCode = await dbContext.PartnerVerificationCodes
+                    .AnyAsync(x =>
+                        x.PartnerId == partner.PartnerId &&
+                        x.Type == VerificationCodeType.ForgotPassword &&
+                        x.VerifiedAt == null &&
+                        x.ExpiresAt > DateTime.UtcNow,
+                        cancellationToken);
+
+                if (hasActiveCode)
+                    return Result.Failure(PartnerErrors.ForgotPasswordCodeAlreadySent);
+
                 await verificationCodeService.SendPartnerVerificationCodeAsync(
                     partner,
                     VerificationCodeType.ForgotPassword,

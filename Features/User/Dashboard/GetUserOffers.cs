@@ -8,6 +8,7 @@ using OfferwallApi.Infrastructure.Interfaces;
 using OfferwallApi.Infrastructure.Messaging;
 using OfferwallApi.Infrastructure.Persistence;
 using OfferwallApi.Infrastructure.Results;
+using OfferwallApi.Shared.Entities;
 
 namespace OfferwallApi.Features.User.Dashboard;
 
@@ -74,7 +75,7 @@ public static class GetUserOffers
                 .AsNoTracking()
                 .FirstOrDefaultAsync(p => p.PartnerId == currentUser.PartnerId, cancellationToken);
 
-            if (partner is null || !partner.IsActive)
+            if (partner is null || partner.Status != PublisherStatus.Active)
             {
                 return Error.Unauthorized("Partner.Invalid", "Partner is inactive or not found.");
             }

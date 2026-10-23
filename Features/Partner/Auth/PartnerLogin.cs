@@ -60,7 +60,7 @@ public static class PartnerLogin
             if (!partner.IsEmailVerified)
                 return PartnerErrors.EmailNotVerified;
 
-            if (!partner.IsActive)
+            if (partner.Status == PublisherStatus.PendingApproval)
                 return PartnerErrors.AccountPendingApproval;
 
             var accessToken = jwtService.GenerateAccessToken(claimsFactory.Create(partner));

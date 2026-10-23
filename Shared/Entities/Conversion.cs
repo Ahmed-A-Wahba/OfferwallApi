@@ -6,6 +6,8 @@ public sealed class Conversion
 
     public Guid UserId { get; set; }
 
+    public Guid PartnerId { get; set; }
+
     public string OfferId { get; set; } = null!;
 
     public string EventId { get; set; } = null!;
@@ -19,7 +21,7 @@ public sealed class Conversion
     public DateTime CreatedAt { get; set; }
 
     public User User { get; set; } = null!;
-
+    public Partner Partner { get; set; } = null!;
     public ICollection<WalletTransaction> WalletTransactions { get; set; } = [];
     public OfferCache OfferCache { get; set; } = null!;
 }

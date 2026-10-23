@@ -92,7 +92,7 @@ public static class VerifyPartnerEmail
             verificationCode.VerifiedAt = DateTime.UtcNow;
 
             partner.IsEmailVerified = true;
-            partner.IsActive = false;
+            partner.Status = PublisherStatus.PendingApproval;
             partner.UpdatedAt = DateTime.UtcNow;
 
             await dbContext.SaveChangesAsync(cancellationToken);

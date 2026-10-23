@@ -54,8 +54,21 @@ public static class ResultExtensions
                 Title = "Not Found",
                 Detail = error.Description
             }),
-            ErrorType.Unauthorized => HttpResults.Unauthorized(),
-            ErrorType.Forbidden => HttpResults.Forbid(),
+            ErrorType.Unauthorized => HttpResults.Json(new ProblemDetails
+            {
+                Status = StatusCodes.Status401Unauthorized,
+                Title = error.Code,
+                Detail = error.Description,
+                Extensions = { ["code"] = error.Code }
+            }, statusCode: StatusCodes.Status401Unauthorized),
+
+            ErrorType.Forbidden => HttpResults.Json(new ProblemDetails
+            {
+                Status = StatusCodes.Status403Forbidden,
+                Title = error.Code,
+                Detail = error.Description,
+                Extensions = { ["code"] = error.Code }
+            }, statusCode: StatusCodes.Status403Forbidden),
             ErrorType.Conflict => HttpResults.Conflict(new ProblemDetails
             {
                 Status = StatusCodes.Status409Conflict,

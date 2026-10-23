@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("OfferwallApi")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+ca51eef8fda627ee522340b441d390ea0d97fb3d")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+5b45e32584fd175badcc7c1c9d272a902f3bbc2d")]
 [assembly: System.Reflection.AssemblyProductAttribute("OfferwallApi")]
 [assembly: System.Reflection.AssemblyTitleAttribute("OfferwallApi")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

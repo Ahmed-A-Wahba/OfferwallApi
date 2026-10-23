@@ -73,8 +73,9 @@ public sealed class PartnerConfiguration : IEntityTypeConfiguration<Partner>
             .HasConversion<int>()
             .IsRequired();
 
-        builder.Property(x => x.IsActive)
-            .HasDefaultValue(true);
+        builder.Property(x => x.Status)
+            .HasConversion<int>()
+            .HasDefaultValue(PublisherStatus.PendingApproval);
 
         builder.Property(x => x.IsEmailVerified)
             .HasDefaultValue(false);

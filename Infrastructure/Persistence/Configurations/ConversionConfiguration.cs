@@ -28,5 +28,10 @@ public sealed class ConversionConfiguration : IEntityTypeConfiguration<Conversio
             .WithMany()
             .HasForeignKey(x => x.OfferId)
             .IsRequired();
+
+        builder.HasOne(c => c.Partner)
+               .WithMany(p => p.Conversions)
+               .HasForeignKey(c => c.PartnerId)
+               .OnDelete(DeleteBehavior.Restrict);
     }
 }

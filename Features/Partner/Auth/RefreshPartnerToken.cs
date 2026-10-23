@@ -59,7 +59,7 @@ public static class RefreshPartnerToken
             if (!partner.IsEmailVerified)
                 return PartnerErrors.EmailNotVerified;
 
-            if (!partner.IsActive)
+            if (partner.Status != PublisherStatus.Active)
                 return PartnerErrors.AccountPendingApproval;
 
             dbContext.PartnerRefreshTokens.Remove(refreshToken);

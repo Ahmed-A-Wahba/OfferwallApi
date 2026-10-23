@@ -54,7 +54,7 @@ public static class ResetPartnerPasswordWithCode
             var partner = await dbContext.Partners
                 .FirstOrDefaultAsync(p => p.Email == request.Email, cancellationToken);
 
-            if (partner is null || !partner.IsEmailVerified || !partner.IsActive)
+            if (partner is null || !partner.IsEmailVerified || partner.Status != PublisherStatus.Active)
             {
                 return Error.NotFound("Partner.NotFound", "Invalid request or partner not found.");
             }

@@ -58,4 +58,9 @@ public static class PartnerErrors
         Error.Unauthorized(
             "Partner.InvalidRefreshToken",
             "The refresh token is invalid or expired.");
+
+    public static readonly Error ForgotPasswordCodeAlreadySent =
+        Error.Validation(
+            "Partner.ForgotPasswordCodeAlreadySent",
+            "A forgot password code has already been sent. Please check your email.");
 }

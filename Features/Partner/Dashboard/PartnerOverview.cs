@@ -27,9 +27,9 @@ public static class PartnerOverview
     );
 
     internal sealed class Handler(
-    ApplicationDbContext dbContext,
-    ICurrentUser currentUser)
-    : IQueryHandler<Query, Result<Response>>
+        ApplicationDbContext dbContext,
+        ICurrentUser currentUser)
+        : IQueryHandler<Query, Result<Response>>
     {
         public async Task<Result<Response>> Handle(
             Query request,
@@ -37,6 +37,7 @@ public static class PartnerOverview
         {
             var partnerId = currentUser.UserId;
 
+            // 1. Check Partner existence and fetch HasChargebacks status
             var partner = await dbContext.Partners
                 .AsNoTracking()
                 .FirstOrDefaultAsync(
@@ -50,65 +51,65 @@ public static class PartnerOverview
                     "The partner was not found.");
             }
 
+            // 2. Fetch Coupon and Payout statistics
             var couponsGenerated = await dbContext.Coupons
                 .AsNoTracking()
-                .CountAsync(
-                    x => x.PartnerId == partnerId,
-                    cancellationToken);
+                .CountAsync(x => x.PartnerId == partnerId, cancellationToken);
 
             var couponsRedeemed = await dbContext.Coupons
                 .AsNoTracking()
                 .CountAsync(
-                    x => x.PartnerId == partnerId &&
-                         x.Status == CouponStatus.Redeemed,
+                    x => x.PartnerId == partnerId && x.Status == CouponStatus.Redeemed,
                     cancellationToken);
 
             var totalPaid = await dbContext.Payouts
                 .AsNoTracking()
-                .Where(x =>
-                    x.PartnerId == partnerId &&
-                    x.Status == PayoutStatus.Paid)
-                .SumAsync(
-                    x => (decimal?)x.Amount,
-                    cancellationToken) ?? 0;
+                .Where(x => x.PartnerId == partnerId && x.Status == PayoutStatus.Paid)
+                .SumAsync(x => (decimal?)x.Amount, cancellationToken) ?? 0m;
 
-            var monthStart = new DateTime(
-                DateTime.UtcNow.Year,
-                DateTime.UtcNow.Month,
-                1);
+            // 3. Setup Calendar Dates for Net-30
+            var now = DateTime.UtcNow;
+            var startOfCurrentMonth = new DateTime(now.Year, now.Month, 1, 0, 0, 0, DateTimeKind.Utc);
+            var clearedThreshold = startOfCurrentMonth.AddMonths(-1);
 
-            var totalInThisMonth = await dbContext.Payouts
+            // 4. Single Light Query for Conversions starting from ClearedThreshold
+            var conversionData = await dbContext.Conversions
                 .AsNoTracking()
-                .Where(x =>
-                    x.PartnerId == partnerId &&
-                    x.Status == PayoutStatus.Paid &&
-                    x.PaidAt >= monthStart)
-                .SumAsync(
-                    x => (decimal?)x.Amount,
-                    cancellationToken) ?? 0;
+                .Where(c => c.PartnerId == partnerId && c.CreatedAt >= clearedThreshold)
+                .Select(c => new
+                {
+                    c.Payout,
+                    c.Type,
+                    c.CreatedAt
+                })
+                .ToListAsync(cancellationToken);
 
-            var pendingSettlements = await dbContext.Payouts
-                .AsNoTracking()
-                .Where(x =>
-                    x.PartnerId == partnerId &&
-                    x.Status == PayoutStatus.Pending)
-                .SumAsync(
-                    x => (decimal?)x.Amount,
-                    cancellationToken) ?? 0;
+            // A. Conversions Calculations
+            var thisMonthConversions = conversionData
+                .Where(c => c.CreatedAt >= startOfCurrentMonth && c.Type == ConversionType.Conversion)
+                .Sum(c => c.Payout);
 
-            decimal chargebacks = 0m;
+            var pendingConversions = conversionData
+                .Where(c => c.Type == ConversionType.Conversion)
+                .Sum(c => c.Payout);
+
+            decimal thisMonthChargebacks = 0m;
+            decimal pendingChargebacks = 0m;
 
             if (partner.HasChargebacks)
             {
-                chargebacks = await dbContext.Conversions
-                    .AsNoTracking()
-                    .Where(x =>
-                        x.User.PartnerId == partnerId &&
-                        x.Type == ConversionType.Chargeback)
-                    .SumAsync(
-                        x => (decimal?)x.Payout,
-                        cancellationToken) ?? 0;
+                thisMonthChargebacks = conversionData
+                    .Where(c => c.CreatedAt >= startOfCurrentMonth && c.Type == ConversionType.Chargeback)
+                    .Sum(c => c.Payout);
+
+                pendingChargebacks = conversionData
+                    .Where(c => c.Type == ConversionType.Chargeback)
+                    .Sum(c => c.Payout);
             }
+
+            // C. Net Totals
+            var totalInThisMonth = thisMonthConversions - thisMonthChargebacks;
+            var pendingSettlements = pendingConversions - pendingChargebacks;
 
             return new Response(
                 partner.CompanyName,
@@ -118,7 +119,7 @@ public static class PartnerOverview
                 totalPaid,
                 totalInThisMonth,
                 pendingSettlements,
-                chargebacks);
+                thisMonthChargebacks);
         }
     }
 
@@ -128,10 +129,9 @@ public static class PartnerOverview
         {
             app.MapGet(
                 "/partners/dashboard/overview",
-                async (ISender sender) =>
+                async (ISender sender, CancellationToken cancellationToken) =>
                 {
-                    var result = await sender.Send(new Query());
-
+                    var result = await sender.Send(new Query(), cancellationToken);
                     return result.ToHttpResponse();
                 });
         }

@@ -59,7 +59,7 @@ public sealed class Partner
     public string? ContactPhoneNumber { get; set; }
 
     public bool HasChargebacks { get; set; }
-    public bool IsActive { get; set; } = true;
+    public PublisherStatus Status { get; set; } = PublisherStatus.PendingApproval;
     public bool IsEmailVerified { get; set; }
 
     public DateTime CreatedAt { get; set; }
@@ -72,6 +72,7 @@ public sealed class Partner
     public ICollection<Coupon> Coupons { get; set; } = [];
     public ICollection<PartnerRefreshToken> RefreshTokens { get; set; } = [];
     public ICollection<PartnerVerificationCode> VerificationCodes { get; set; } = [];
+    public ICollection<Conversion> Conversions { get; set; } = [];
 }
 
 public enum StoreCategory
@@ -84,6 +85,13 @@ public enum StoreCategory
     Travel,
     Entertainment,
     Other
+}
+
+public enum PublisherStatus
+{
+    PendingApproval,
+    Active,
+    Disabled
 }
 
 public enum Country

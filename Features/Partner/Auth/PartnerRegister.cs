@@ -128,7 +128,7 @@ public static class PartnerRegister
 
                 PointsPerUsd = 100,
 
-                IsActive = false,
+                Status = PublisherStatus.PendingApproval,
                 IsEmailVerified = false,
 
                 CreatedAt = DateTime.UtcNow,

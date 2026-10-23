@@ -121,7 +121,7 @@ namespace OfferwallApi.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("AdminId");
 
-                    b.HasIndex("AdminId", "Type");
+                    b.HasIndex("AdminId", "Type", "Code");
 
                     b.ToTable("AdminVerificationCodes");
                 });
@@ -174,6 +174,9 @@ namespace OfferwallApi.Infrastructure.Persistence.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
+                    b.Property<Guid>("PartnerId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<decimal>("Payout")
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
@@ -190,6 +193,8 @@ namespace OfferwallApi.Infrastructure.Persistence.Migrations
                     b.HasKey("ConversionId");
 
                     b.HasIndex("OfferId");
+
+                    b.HasIndex("PartnerId");
 
                     b.HasIndex("UserId");
 
@@ -363,11 +368,6 @@ namespace OfferwallApi.Infrastructure.Persistence.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
 
-                    b.Property<bool>("IsActive")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bit")
-                        .HasDefaultValue(true);
-
                     b.Property<bool>("IsEmailVerified")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bit")
@@ -403,10 +403,16 @@ namespace OfferwallApi.Infrastructure.Persistence.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<decimal>("RevenueShareRatio")
-                        .HasColumnType("decimal(18,2)");
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
 
                     b.Property<string>("RoutingNumber")
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("Status")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
 
                     b.Property<int>("StoreCategory")
                         .HasColumnType("int");
@@ -773,6 +779,12 @@ namespace OfferwallApi.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("OfferwallApi.Shared.Entities.Partner", "Partner")
+                        .WithMany("Conversions")
+                        .HasForeignKey("PartnerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.HasOne("OfferwallApi.Shared.Entities.User", "User")
                         .WithMany("Conversions")
                         .HasForeignKey("UserId")
@@ -780,6 +792,8 @@ namespace OfferwallApi.Infrastructure.Persistence.Migrations
                         .IsRequired();
 
                     b.Navigation("OfferCache");
+
+                    b.Navigation("Partner");
 
                     b.Navigation("User");
                 });
@@ -924,6 +938,8 @@ namespace OfferwallApi.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("OfferwallApi.Shared.Entities.Partner", b =>
                 {
+                    b.Navigation("Conversions");
+
                     b.Navigation("Coupons");
 
                     b.Navigation("Payouts");
