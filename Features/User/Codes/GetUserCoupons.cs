@@ -84,7 +84,7 @@ public static class GetUserCoupons
                     c.CouponId,
                     c.Code,
                     c.Value,
-                    pointsPerUsd > 0 ? Math.Round(c.Value / pointsPerUsd, 2) : 0m,
+                    pointsPerUsd > 0 ? Math.Round(c.Value / pointsPerUsd, 2, MidpointRounding.AwayFromZero) : 0m,
                     c.CountryCode,
                     c.CityCode,
                     c.Status.ToString(),

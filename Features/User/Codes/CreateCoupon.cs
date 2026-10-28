@@ -1,4 +1,5 @@
 using Carter;
+using FluentValidation;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -7,6 +8,7 @@ using OfferwallApi.Infrastructure.Interfaces;
 using OfferwallApi.Infrastructure.Persistence;
 using OfferwallApi.Infrastructure.Results;
 using OfferwallApi.Shared.Entities;
+using System.Security.Cryptography;
 
 namespace OfferwallApi.Features.User.Codes;
 
@@ -21,109 +23,155 @@ public static class CreateCoupon
         decimal PointsValue,
         decimal UsdValue,
         string Status,
-        DateTime CreatedAt
+        DateTime CreatedAt,
+        DateTime ExpiresAt
     );
 
-    public sealed class Handler(ApplicationDbContext dbContext, ICurrentUser currentUser, IUserLocationService userLocationService) : IRequestHandler<Command, Result<Response>>
+    // 1. Validator Class
+    public sealed class Validator : AbstractValidator<Command>
+    {
+        public Validator()
+        {
+            RuleFor(x => x.Points)
+                .GreaterThan(0)
+                .WithMessage("Points amount must be greater than zero.");
+        }
+    }
+
+    // 2. Handler Class
+    public sealed class Handler(
+        ApplicationDbContext dbContext,
+        ICurrentUser currentUser,
+        IUserLocationService userLocationService)
+        : IRequestHandler<Command, Result<Response>>
     {
         public async Task<Result<Response>> Handle(Command request, CancellationToken cancellationToken)
         {
             var userId = currentUser.UserId;
 
+            // Fetch User with Partner and Wallet in a single query
             var user = await dbContext.Users
                 .Include(u => u.Partner)
+                .Include(u => u.Wallet)
                 .FirstOrDefaultAsync(u => u.UserId == userId, cancellationToken);
 
             if (user is null)
             {
-                return Error.Failure("User.NotFound", "User is not found.");
+                return Error.Failure("User.NotFound", "User was not found.");
             }
 
-            var wallet = await dbContext.Wallets
-                .FirstOrDefaultAsync(w => w.UserId == userId, cancellationToken);
+            if (user.Wallet is null)
+            {
+                return Error.Failure("Wallet.NotFound", "User wallet is not initialized.");
+            }
 
-            if (wallet is null || wallet.Balance < request.Points)
+            var partner = user.Partner;
+            if (partner is null || partner.PointsPerUsd <= 0)
+            {
+                return Error.Failure("Partner.InvalidConfig", "Partner points configuration is invalid.");
+            }
+
+            // Convert requested points to USD Equivalent for Balance Validation
+            decimal pointsPerUsd = partner.PointsPerUsd;
+            decimal requiredUsdAmount = request.Points / pointsPerUsd;
+
+            // Assuming Wallet.Balance is maintained in USD
+            if (user.Wallet.Balance < requiredUsdAmount)
             {
                 return Error.Failure("Wallet.InsufficientBalance", "Insufficient points balance for redemption.");
             }
 
-            if (request.Points <= 0)
+            var countryCode = await userLocationService.GetCountryCodeAsync(cancellationToken);
+            var now = DateTime.UtcNow;
+
+            // Begin Execution Strategy / Transaction for Data Consistency
+            var strategy = dbContext.Database.CreateExecutionStrategy();
+
+            return await strategy.ExecuteAsync(async () =>
             {
-                return Error.Failure("Coupon.InvalidAmount", "Points amount must be greater than zero.");
-            }
+                await using var dbTransaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
 
-            if (request.Points > wallet.Balance)
-            {
-                return Error.Failure("Coupon.ExceedsBalance", "Requested points exceed available balance.");
-            }
+                try
+                {
+                    // Deduct USD equivalent from Wallet Balance
+                    user.Wallet.Balance -= requiredUsdAmount;
+                    user.Wallet.UpdatedAt = now;
 
-            var country = await userLocationService.GetCountryCodeAsync(cancellationToken);
+                    decimal usdValue = Math.Round(requiredUsdAmount, 2, MidpointRounding.AwayFromZero);
+                    string generatedCode = GenerateSecureCouponCode();
 
-            wallet.Balance -= request.Points;
-            wallet.UpdatedAt = DateTime.UtcNow;
+                    var coupon = new Coupon
+                    {
+                        CouponId = Guid.CreateVersion7(),
+                        UserId = userId,
+                        PartnerId = user.PartnerId,
+                        Code = generatedCode,
+                        Value = usdValue,
+                        CountryCode = countryCode ?? "EG",
+                        CityCode = "Cairo",
+                        Status = CouponStatus.Active,
+                        ExpiresAt = now.AddDays(30),
+                        CreatedAt = now,
+                        UpdatedAt = now
+                    };
 
-            decimal pointsPerUsd = user.Partner.PointsPerUsd > 0 ? user.Partner.PointsPerUsd : 100m;
-            decimal usdValue = Math.Round(request.Points / pointsPerUsd, 2);
+                    var transaction = new WalletTransaction
+                    {
+                        TransactionId = Guid.CreateVersion7(),
+                        UserId = userId,
+                        Amount = -requiredUsdAmount, // Track deduction in USD
+                        Type = WalletTransactionType.CouponCreation,
+                        CreatedAt = now
+                    };
 
-            var generatedCode = $"CPN-{Guid.NewGuid().ToString()[..8].ToUpper()}";
+                    dbContext.Coupons.Add(coupon);
+                    dbContext.WalletTransactions.Add(transaction);
 
+                    await dbContext.SaveChangesAsync(cancellationToken);
+                    await dbTransaction.CommitAsync(cancellationToken);
 
+                    return Result<Response>.Success(new Response(
+                        coupon.CouponId,
+                        coupon.Code,
+                        coupon.Value,
+                        usdValue,
+                        coupon.Status.ToString(),
+                        coupon.CreatedAt,
+                        coupon.ExpiresAt
+                    ));
+                }
+                catch
+                {
+                    await dbTransaction.RollbackAsync(cancellationToken);
+                    throw;
+                }
+            });
+        }
 
-            var coupon = new Coupon
-            {
-                CouponId = Guid.CreateVersion7(),
-                UserId = userId,
-                PartnerId = user.PartnerId,
-                Code = generatedCode,
-                Value = request.Points,
-                CountryCode = country ?? "EG",
-                CityCode = "Cairo",
-                Status = CouponStatus.Active,
-                ExpiresAt = DateTime.UtcNow.AddDays(30),
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow
-            };
-
-            var transaction = new WalletTransaction
-            {
-                TransactionId = Guid.CreateVersion7(),
-                UserId = userId,
-                Amount = -request.Points,
-                Type = WalletTransactionType.CouponCreation,
-                CreatedAt = DateTime.UtcNow
-            };
-
-            dbContext.Coupons.Add(coupon);
-            dbContext.WalletTransactions.Add(transaction);
-
-            await dbContext.SaveChangesAsync(cancellationToken);
-
-            var response = new Response(
-                coupon.CouponId,
-                coupon.Code,
-                coupon.Value,
-                usdValue,
-                coupon.Status.ToString(),
-                coupon.CreatedAt
-            );
-
-            return response;
+        private static string GenerateSecureCouponCode()
+        {
+            var bytes = new byte[4];
+            RandomNumberGenerator.Fill(bytes);
+            var hex = Convert.ToHexString(bytes);
+            return $"CPN-{hex}";
         }
     }
 
+    // 3. Carter Endpoint
     public sealed class Endpoint : ICarterModule
     {
         public void AddRoutes(IEndpointRouteBuilder app)
         {
             app.MapPost("/user/coupons/redeem", async (
                 [FromBody] Command command,
-                ISender sender = null!,
-                CancellationToken cancellationToken = default) =>
+                ISender sender,
+                CancellationToken cancellationToken) =>
             {
                 var result = await sender.Send(command, cancellationToken);
-
                 return result.ToHttpResponse();
-            }).RequireAuthorization();
+            })
+            .RequireAuthorization()
+            .WithTags("User Coupons");
         }
     }
 }

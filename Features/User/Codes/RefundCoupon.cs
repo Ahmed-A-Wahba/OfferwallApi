@@ -21,17 +21,29 @@ public static class RefundCoupon
     public sealed record Response(
         Guid CouponId,
         decimal RefundedPoints,
-        decimal CurrentWalletBalance,
+        decimal CurrentWalletBalanceUsd,
         string Status
     );
 
-    public sealed class Handler(ApplicationDbContext dbContext, ICurrentUser currentUser) : IRequestHandler<Command, Result<Response>>
+    public sealed class Handler(ApplicationDbContext dbContext, ICurrentUser currentUser)
+        : IRequestHandler<Command, Result<Response>>
     {
         private static readonly TimeSpan RefundWindow = TimeSpan.FromHours(2);
 
         public async Task<Result<Response>> Handle(Command request, CancellationToken cancellationToken)
         {
             var userId = currentUser.UserId;
+
+            // Fetch Coupon, User, Partner, and Wallet in an optimized single query structure
+            var user = await dbContext.Users
+                .Include(u => u.Partner)
+                .Include(u => u.Wallet)
+                .FirstOrDefaultAsync(u => u.UserId == userId, cancellationToken);
+
+            if (user is null || user.Wallet is null)
+            {
+                return Error.Failure("User.NotFound", "User or wallet was not found.");
+            }
 
             var coupon = await dbContext.Coupons
                 .FirstOrDefaultAsync(c => c.CouponId == request.CouponId && c.UserId == userId, cancellationToken);
@@ -51,47 +63,62 @@ public static class RefundCoupon
                 return Error.Failure("Coupon.AlreadyCancelled", "The coupon has already been cancelled.");
             }
 
-            var timeElapsed = DateTime.UtcNow - coupon.CreatedAt;
-            if (timeElapsed > RefundWindow)
+            var now = DateTime.UtcNow;
+            if (now - coupon.CreatedAt > RefundWindow)
             {
                 return Error.Failure("Coupon.RefundWindowExpired", "The refund window for this coupon has expired.");
             }
 
-            var wallet = await dbContext.Wallets
-                .FirstOrDefaultAsync(w => w.UserId == userId, cancellationToken);
+            // Financial Calculations
+            decimal pointsPerUsd = user.Partner?.PointsPerUsd > 0 ? user.Partner.PointsPerUsd : 100m;
 
-            if (wallet is null)
+            // coupon.Value stores USD amount, calculate returned Points equivalent
+            decimal refundedPoints = Math.Round(coupon.Value * pointsPerUsd, 2, MidpointRounding.AwayFromZero);
+
+            var strategy = dbContext.Database.CreateExecutionStrategy();
+
+            return await strategy.ExecuteAsync(async () =>
             {
-                return Error.Failure("Wallet.NotFound", "The wallet does not exist.");
-            }
+                await using var dbTransaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
 
-            coupon.Status = CouponStatus.Cancelled;
-            coupon.UpdatedAt = DateTime.UtcNow;
+                try
+                {
+                    // 1. Update Coupon Status
+                    coupon.Status = CouponStatus.Cancelled;
+                    coupon.UpdatedAt = now;
 
-            wallet.Balance += coupon.Value;
-            wallet.UpdatedAt = DateTime.UtcNow;
+                    // 2. Refund USD value to Wallet
+                    user.Wallet.Balance += coupon.Value;
+                    user.Wallet.UpdatedAt = now;
 
-            var transaction = new WalletTransaction
-            {
-                TransactionId = Guid.NewGuid(),
-                UserId = userId,
-                Amount = coupon.Value,
-                Type = WalletTransactionType.CouponCancellation,
-                CreatedAt = DateTime.UtcNow
-            };
+                    // 3. Log Wallet Transaction
+                    var transaction = new WalletTransaction
+                    {
+                        TransactionId = Guid.CreateVersion7(),
+                        UserId = userId,
+                        Amount = coupon.Value, // Positive USD refund
+                        Type = WalletTransactionType.CouponCancellation,
+                        CreatedAt = now
+                    };
 
-            dbContext.WalletTransactions.Add(transaction);
+                    dbContext.WalletTransactions.Add(transaction);
 
-            await dbContext.SaveChangesAsync(cancellationToken);
+                    await dbContext.SaveChangesAsync(cancellationToken);
+                    await dbTransaction.CommitAsync(cancellationToken);
 
-            var response = new Response(
-                coupon.CouponId,
-                coupon.Value,
-                wallet.Balance,
-                coupon.Status.ToString()
-            );
-
-            return response;
+                    return Result<Response>.Success(new Response(
+                        coupon.CouponId,
+                        refundedPoints,
+                        user.Wallet.Balance,
+                        coupon.Status.ToString()
+                    ));
+                }
+                catch
+                {
+                    await dbTransaction.RollbackAsync(cancellationToken);
+                    throw;
+                }
+            });
         }
     }
 
@@ -101,14 +128,16 @@ public static class RefundCoupon
         {
             app.MapPost("/user/coupons/{id:guid}/refund", async (
                 [FromRoute] Guid id,
-                ISender sender = null!,
-                CancellationToken cancellationToken = default) =>
+                ISender sender,
+                CancellationToken cancellationToken) =>
             {
                 var command = new Command(id);
                 var result = await sender.Send(command, cancellationToken);
 
                 return result.ToHttpResponse();
-            }).RequireAuthorization();
+            })
+            .RequireAuthorization()
+            .WithTags("User Coupons");
         }
     }
 }

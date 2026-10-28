@@ -82,10 +82,8 @@ public static class GetUserOffers
 
             var country = await userLocationService.GetCountryCodeAsync(cancellationToken);
 
-            System.Console.WriteLine(country);
-
             var klinkResponse = await klinkApiClient.GetOffersAsync(
-                country: "Eg",
+                country: country,
                 platform: request.Platform,
                 deviceName: request.DeviceName,
                 category: request.Category?.ToUpper(),
@@ -109,11 +107,11 @@ public static class GetUserOffers
                 LogoUrl: offer.Images?.Logo ?? "",
                 Platform: offer.Platform,
                 DeviceName: offer.DeviceName,
-                PointsReward: Math.Round(offer.TotalPayout * multiplier, 2),
+                PointsReward: Math.Floor(offer.TotalPayout * multiplier),
                 Activities: offer.Activities?.OrderBy(a => a.Order).Select(a => new ActivityDto(
                     Name: a.Name,
                     EventId: a.EventId,
-                    PointsReward: Math.Round(a.Payout * multiplier, 2)
+                    PointsReward: Math.Floor(a.Payout * multiplier)
                 )).ToList() ?? []
             )).ToList();
 

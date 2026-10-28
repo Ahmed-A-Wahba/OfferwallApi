@@ -69,6 +69,7 @@ public static class InitUserDashboard
             }
 
             var user = await dbContext.Users
+                .AsNoTracking()
                 .Include(u => u.Wallet)
                 .FirstOrDefaultAsync(
                     u => u.PartnerId == partner.PartnerId && u.ExternalUserId == request.ExternalUserId,
