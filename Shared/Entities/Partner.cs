@@ -32,6 +32,7 @@ public sealed class Partner
     // Authentication
     public string PasswordHash { get; set; } = null!;
     public string ApiKey { get; set; } = null!;
+    public string ApiSecret { get; set; } = null!;
     public string? AllowedIframeOrigin { get; set; }
 
     // Offerwall

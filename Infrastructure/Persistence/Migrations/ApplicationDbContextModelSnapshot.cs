@@ -324,6 +324,10 @@ namespace OfferwallApi.Infrastructure.Persistence.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
+                    b.Property<string>("ApiSecret")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("BankName")
                         .HasMaxLength(150)
                         .HasColumnType("nvarchar(150)");

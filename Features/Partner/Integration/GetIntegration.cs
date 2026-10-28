@@ -1,9 +1,12 @@
 using Carter;
 using MediatR;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
 using OfferwallApi.Infrastructure.Authorization;
 using OfferwallApi.Infrastructure.Interfaces;
-using OfferwallApi.Infrastructure.Messaging;
 using OfferwallApi.Infrastructure.Persistence;
 using OfferwallApi.Infrastructure.Results;
 
@@ -12,42 +15,37 @@ namespace OfferwallApi.Features.Partner.Integration;
 public static class GetIntegration
 {
     [Authorize(Role = "Partner")]
-    public sealed record Query
-    : IQuery<Result<Response>>;
+    public sealed record Query : IRequest<Result<Response>>;
 
     public sealed record Response(
-        Guid PublisherId,
+        Guid PartnerId,
         string ApiKey,
+        string ApiSecret,
         decimal PointsPerUsd
     );
 
-    [Authorize(Role = "Partner")]
-    internal sealed class Handler(
-    ApplicationDbContext dbContext,
-    ICurrentUser currentUser)
-    : IQueryHandler<Query, Result<Response>>
+    public sealed class Handler(ApplicationDbContext dbContext, ICurrentUser currentUser)
+        : IRequestHandler<Query, Result<Response>>
     {
-        public async Task<Result<Response>> Handle(
-            Query request,
-            CancellationToken cancellationToken)
+        public async Task<Result<Response>> Handle(Query request, CancellationToken cancellationToken)
         {
+            var partnerId = currentUser.UserId;
+
             var partner = await dbContext.Partners
                 .AsNoTracking()
-                .FirstOrDefaultAsync(
-                    x => x.PartnerId == currentUser.UserId,
-                    cancellationToken);
+                .FirstOrDefaultAsync(p => p.PartnerId == partnerId, cancellationToken);
 
             if (partner is null)
             {
-                return Error.NotFound(
-                    "Partner.NotFound",
-                    "Partner was not found.");
+                return Error.Failure("Partner.NotFound", "Partner integration details were not found.");
             }
 
-            return new Response(
+            return Result<Response>.Success(new Response(
                 partner.PartnerId,
                 partner.ApiKey,
-                partner.PointsPerUsd);
+                partner.ApiSecret,
+                partner.PointsPerUsd
+            ));
         }
     }
 
@@ -55,15 +53,17 @@ public static class GetIntegration
     {
         public void AddRoutes(IEndpointRouteBuilder app)
         {
-            app.MapGet(
-                "/partners/integration",
-                async (
-                    ISender sender) =>
-                {
-                    var result = await sender.Send(new Query());
+            app.MapGet("/api/partner/integration", async (
+                ISender sender,
+                CancellationToken cancellationToken) =>
+            {
+                var query = new Query();
+                var result = await sender.Send(query, cancellationToken);
 
-                    return result.ToHttpResponse();
-                });
+                return result.ToHttpResponse();
+            })
+            .RequireAuthorization("PartnerPolicy")
+            .WithTags("Partner Settings");
         }
     }
 }

@@ -56,7 +56,7 @@ public static class StartOffer
 
             var click = new Click
             {
-                ClickId = Guid.NewGuid(),
+                ClickId = Guid.CreateVersion7(),
                 UserId = userId,
                 OfferId = request.OfferId,
                 Status = ClickStatus.Pending,
