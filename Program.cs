@@ -46,7 +46,14 @@ builder.Services
         };
     });
 
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("PartnerPolicy", policy =>
+        policy.RequireClaim(System.Security.Claims.ClaimTypes.Role, "Partner"));
+
+    options.AddPolicy("AdminPolicy", policy =>
+        policy.RequireClaim(System.Security.Claims.ClaimTypes.Role, "Admin"));
+});
 
 // Add services to the container.
 
