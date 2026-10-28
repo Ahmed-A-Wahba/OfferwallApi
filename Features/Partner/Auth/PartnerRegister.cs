@@ -123,6 +123,7 @@ public static class PartnerRegister
                 MonthlyActiveUsers = request.MonthlyActiveUsers,
 
                 ApiKey = apiKeyGenerator.GenerateApiKey(),
+                ApiSecret = apiKeyGenerator.GenerateApiSecret(),
 
                 AllowedIframeOrigin = request.AllowedIframeOrigin,
 
