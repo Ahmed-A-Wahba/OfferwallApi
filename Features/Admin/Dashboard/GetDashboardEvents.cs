@@ -2,6 +2,7 @@ using Carter;
 using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using OfferwallApi.Infrastructure.Authorization;
 using OfferwallApi.Infrastructure.Interfaces;
 using OfferwallApi.Infrastructure.Messaging;
 using OfferwallApi.Infrastructure.Persistence;
@@ -11,6 +12,7 @@ namespace OfferwallApi.Features.Admin.Dashboard;
 
 public static class GetDashboardEvents
 {
+    [Authorize(Role = "Admin")]
     public sealed record Query(
         int Limit = 10
     ) : IQuery<Result<List<EventResponse>>>;

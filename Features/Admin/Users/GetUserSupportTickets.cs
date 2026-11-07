@@ -13,13 +13,13 @@ namespace OfferwallApi.Features.Admin.SupportTickets;
 
 public static class GetOpenSupportTickets
 {
-    // 1. Query (بدون UserId)
-    public sealed record Query(
-        int PageNumber = 1,
-        int PageSize = 10
-    ) : IQuery<Result<Response>>;
+    [Authorize(Role = "Admin")]
 
-    // 2. Response DTOs
+    public sealed record Query(
+    int PageNumber = 1,
+    int PageSize = 10
+) : IQuery<Result<Response>>;
+
     public sealed record Response(
         int TotalCount,
         List<SupportTicketItemDto> Tickets
@@ -36,7 +36,6 @@ public static class GetOpenSupportTickets
         string Status
     );
 
-    // 3. Validator
     internal sealed class Validator : AbstractValidator<Query>
     {
         public Validator()
@@ -46,14 +45,12 @@ public static class GetOpenSupportTickets
         }
     }
 
-    // 4. Handler
-    [Authorize(Role = "Admin")]
+
     internal sealed class Handler(ApplicationDbContext dbContext)
         : IQueryHandler<Query, Result<Response>>
     {
         public async Task<Result<Response>> Handle(Query request, CancellationToken cancellationToken)
         {
-            // تصفية التذاكر المفتوحة فقط (Open) لجميع المستخدمين
             var query = dbContext.SupportTickets
                 .AsNoTracking()
                 .Where(st => st.Status == TicketStatus.Open);
@@ -80,7 +77,6 @@ public static class GetOpenSupportTickets
         }
     }
 
-    // 5. Endpoint Definition
     public sealed class Endpoint : ICarterModule
     {
         public void AddRoutes(IEndpointRouteBuilder app)
@@ -98,8 +94,7 @@ public static class GetOpenSupportTickets
                 var result = await sender.Send(query, cancellationToken);
 
                 return result.ToHttpResponse();
-            })
-            .RequireAuthorization();
+            });
         }
     }
 }

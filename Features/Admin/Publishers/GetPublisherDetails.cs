@@ -12,6 +12,7 @@ namespace OfferwallApi.Features.Admin.Publishers;
 
 public static class GetPublisherDetails
 {
+    [Authorize(Role = "Admin")]
     public sealed record Query(Guid PublisherId) : IQuery<Result<Response>>;
 
     public sealed record Response(
@@ -56,7 +57,6 @@ public static class GetPublisherDetails
         }
     }
 
-    [Authorize(Role = "Admin")]
     internal sealed class Handler(ApplicationDbContext dbContext)
         : IQueryHandler<Query, Result<Response>>
     {
@@ -151,8 +151,7 @@ public static class GetPublisherDetails
                 var result = await sender.Send(query, cancellationToken);
 
                 return result.ToHttpResponse();
-            })
-            .RequireAuthorization();
+            });
         }
     }
 }

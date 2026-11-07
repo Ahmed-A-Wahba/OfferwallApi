@@ -48,13 +48,23 @@ public static class RefreshAdminToken
                     x => x.Token == request.RefreshToken,
                     cancellationToken);
 
-            if (refreshToken is null)
-                return AdminErrors.InvalidRefreshToken;
+            if (refreshToken is null || refreshToken.ExpiresAt <= DateTime.UtcNow)
+            {
+                if (refreshToken is not null)
+                {
+                    dbContext.AdminRefreshTokens.Remove(refreshToken);
+                    await dbContext.SaveChangesAsync(cancellationToken);
+                }
 
-            if (refreshToken.ExpiresAt <= DateTime.UtcNow)
                 return AdminErrors.InvalidRefreshToken;
+            }
 
             var admin = refreshToken.Admin;
+
+            if (admin is null)
+            {
+                return AdminErrors.InvalidCredentials;
+            }
 
             dbContext.AdminRefreshTokens.Remove(refreshToken);
 
@@ -87,11 +97,13 @@ public static class RefreshAdminToken
         {
             app.MapPost(
                 "/admin/auth/refresh-token",
-                async (Command command, ISender sender) =>
+                async (Command command, ISender sender, CancellationToken cancellationToken) =>
                 {
-                    var result = await sender.Send(command);
+                    var result = await sender.Send(command, cancellationToken);
                     return result.ToHttpResponse();
-                }).AllowAnonymous();
+                })
+                .AllowAnonymous()
+                .WithTags("Admin Auth");
         }
     }
 }

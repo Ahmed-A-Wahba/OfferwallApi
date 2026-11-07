@@ -1,7 +1,6 @@
 using Carter;
 using FluentValidation;
 using MediatR;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using OfferwallApi.Infrastructure.Authorization;
 using OfferwallApi.Infrastructure.Messaging;
@@ -13,7 +12,8 @@ namespace OfferwallApi.Features.Admin.Users;
 
 public static class GetUserProfile
 {
-    // 1. Query
+    // 1. Query مع نقل حارس الأمان هنا
+    [Authorize(Role = "Admin")]
     public sealed record Query(string SearchTerm) : IQuery<Result<Response>>;
 
     // 2. Response DTOs
@@ -47,47 +47,55 @@ public static class GetUserProfile
     }
 
     // 4. Handler
-    [Authorize(Role = "Admin")]
     internal sealed class Handler(ApplicationDbContext dbContext)
         : IQueryHandler<Query, Result<Response>>
     {
         public async Task<Result<Response>> Handle(Query request, CancellationToken cancellationToken)
         {
-            var searchTerm = request.SearchTerm.ToLower().Trim();
-            bool isGuid = Guid.TryParse(searchTerm, out var searchGuid);
+            var term = request.SearchTerm.Trim();
+            bool isGuid = Guid.TryParse(term, out var searchGuid);
 
-            // 1. البحث عن المستخدم (بالـ ID أو ExternalUserId)
+            // 1. البحث عن المستخدم واسقاط البيانات بـ Projection خفيف
             var user = await dbContext.Users
-                .Include(u => u.Partner)
-                .Include(u => u.Wallet) // لجلب الرصيد
                 .AsNoTracking()
-                .FirstOrDefaultAsync(u =>
-                    (isGuid && u.UserId == searchGuid) ||
-                    u.ExternalUserId.ToLower() == searchTerm,
-                    cancellationToken);
+                .Where(u => (isGuid && u.UserId == searchGuid) || EF.Functions.Like(u.ExternalUserId, term))
+                .Select(u => new
+                {
+                    u.UserId,
+                    u.ExternalUserId,
+                    PartnerName = u.Partner != null ? u.Partner.CompanyName : "UNKNOWN",
+                    CurrentBalance = u.Wallet != null ? u.Wallet.Balance : 0m
+                })
+                .FirstOrDefaultAsync(cancellationToken);
 
             if (user is null)
                 return Error.NotFound("User.NotFound", "No user found matching the search term.");
 
-            // 2. حساب الإحصائيات (Stats)
+            // 2. حساب الإحصائيات (Stats) بكفاءة مع حماية من الـ Null
             var totalOffers = await dbContext.Conversions
+                .AsNoTracking()
                 .CountAsync(c => c.UserId == user.UserId && c.Type == ConversionType.Conversion, cancellationToken);
 
             var totalEarned = await dbContext.WalletTransactions
-                .Where(wt => wt.UserId == user.UserId && wt.Amount > 0) // افتراض أن Amount يمثل النقاط المكتسبة
-                .SumAsync(wt => wt.Amount, cancellationToken);
+                .AsNoTracking()
+                .Where(wt => wt.UserId == user.UserId && wt.Amount > 0)
+                .SumAsync(wt => (decimal?)wt.Amount, cancellationToken) ?? 0m;
 
             var totalRedemptions = await dbContext.Coupons
+                .AsNoTracking()
                 .CountAsync(c => c.UserId == user.UserId, cancellationToken);
 
             // 3. تشكيل الاستجابة
+            var userIdStr = user.UserId.ToString();
+            var shortDisplayId = $"#USR-{userIdStr[..5].ToUpper()}";
+
             var response = new Response(
                 User: new UserProfileDto(
                     Id: user.UserId,
-                    DisplayId: user.UserId.ToString(), // عرض الـ ID كما هو في الداتابيز
-                    PartnerName: user.Partner?.CompanyName?.ToUpper() ?? "UNKNOWN",
-                    Status: "ACTIVE", // ثابتة مؤقتاً لعدم وجود حقل حالة في الـ Entity
-                    CurrentBalance: user.Wallet?.Balance ?? 0,
+                    DisplayId: shortDisplayId,
+                    PartnerName: user.PartnerName.ToUpper(),
+                    Status: "ACTIVE",
+                    CurrentBalance: user.CurrentBalance,
                     PublisherUserId: user.ExternalUserId
                 ),
                 Stats: new UserStatsDto(
@@ -101,22 +109,19 @@ public static class GetUserProfile
         }
     }
 
-    // 5. Endpoint
+    // 5. Endpoint Definition
     public sealed class Endpoint : ICarterModule
     {
         public void AddRoutes(IEndpointRouteBuilder app)
         {
             app.MapGet("/admin/users/profile", async (
-                [FromQuery] string searchTerm,
+                [AsParameters] Query query,
                 ISender sender,
                 CancellationToken cancellationToken) =>
             {
-                var query = new Query(searchTerm);
                 var result = await sender.Send(query, cancellationToken);
-
                 return result.ToHttpResponse();
-            })
-            .RequireAuthorization();
+            });
         }
     }
 }

@@ -1,7 +1,6 @@
 using Carter;
 using FluentValidation;
 using MediatR;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using OfferwallApi.Infrastructure.Authorization;
 using OfferwallApi.Infrastructure.Messaging;
@@ -13,7 +12,7 @@ namespace OfferwallApi.Features.Admin.Publishers;
 
 public static class GetPublisherOfferPerformance
 {
-    // 1. Query
+    [Authorize(Role = "Admin")]
     public sealed record Query(
         Guid PublisherId,
         string? SearchTerm = null,
@@ -24,7 +23,6 @@ public static class GetPublisherOfferPerformance
         int PageSize = 10
     ) : IQuery<Result<Response>>;
 
-    // 2. Response DTOs
     public sealed record Response(
         PerformanceSummary Summary,
         int TotalOffersCount,
@@ -51,7 +49,6 @@ public static class GetPublisherOfferPerformance
         string Status
     );
 
-    // 3. Validator
     internal sealed class Validator : AbstractValidator<Query>
     {
         public Validator()
@@ -62,8 +59,6 @@ public static class GetPublisherOfferPerformance
         }
     }
 
-    // 4. Handler
-    [Authorize(Role = "Admin")]
     internal sealed class Handler(ApplicationDbContext dbContext)
         : IQueryHandler<Query, Result<Response>>
     {
@@ -72,109 +67,130 @@ public static class GetPublisherOfferPerformance
             var fromDate = request.FromDate ?? DateTime.UtcNow.AddMonths(-1);
             var toDate = request.ToDate ?? DateTime.UtcNow;
 
-            // Base query for conversions related to this publisher in the date range
-            var conversionsQuery = dbContext.Conversions
+            // 1. جلب نسبة الشريك (RevenueShareRatio) مرة واحدة
+            var partnerShareRatio = await dbContext.Partners
                 .AsNoTracking()
-                .Include(c => c.OfferCache)
+                .Where(p => p.PartnerId == request.PublisherId)
+                .Select(p => p.RevenueShareRatio)
+                .FirstOrDefaultAsync(cancellationToken);
+
+            // 2. سحب التحويلات الخاصة بالناشر في النطاق الزمني
+            var rawConversions = await dbContext.Conversions
+                .AsNoTracking()
                 .Where(c => c.PartnerId == request.PublisherId
                          && c.CreatedAt >= fromDate
                          && c.CreatedAt <= toDate
-                         && c.Type == ConversionType.Conversion);
-
-            // Calculate overall summary stats
-            int totalCompletions = await conversionsQuery.CountAsync(cancellationToken);
-            decimal totalRevenue = await conversionsQuery.SumAsync(c => (decimal?)c.Payout, cancellationToken) ?? 0m;
-            decimal avgEpc = totalCompletions > 0 ? totalRevenue / totalCompletions : 0m;
-
-            // Group by Offer to build the list
-            var offerGroupQuery = conversionsQuery
-                .Where(c => c.OfferCache != null)
-                .GroupBy(c => c.OfferCache)
-                .Select(g => new
+                         && c.Type == ConversionType.Conversion
+                         && c.OfferId != null)
+                .Select(c => new
                 {
-                    Offer = g.Key,
-                    Completions = g.Count(),
-                    Revenue = g.Sum(x => x.Payout),
-                    LastActivity = g.Max(x => (DateTime?)x.CreatedAt)
-                });
-
-            // Apply Filters (Search)
-            if (!string.IsNullOrWhiteSpace(request.SearchTerm))
-            {
-                string searchTerm = request.SearchTerm.ToLower();
-                offerGroupQuery = offerGroupQuery.Where(o =>
-                    o.Offer!.Name.ToLower().Contains(searchTerm) ||
-                    o.Offer.OfferId.ToLower().Contains(searchTerm));
-            }
-
-            // Apply Sorting
-            offerGroupQuery = request.SortBy?.ToLower() switch
-            {
-                "revenue" => offerGroupQuery.OrderByDescending(o => o.Revenue),
-                "completions" => offerGroupQuery.OrderByDescending(o => o.Completions),
-                _ => offerGroupQuery.OrderByDescending(o => o.Revenue)
-            };
-
-            // Get total count for pagination
-            int totalOffersCount = await offerGroupQuery.CountAsync(cancellationToken);
-
-            // Apply Pagination
-            var pagedOffers = await offerGroupQuery
-                .Skip((request.PageNumber - 1) * request.PageSize)
-                .Take(request.PageSize)
+                    c.OfferId,
+                    OfferName = c.OfferCache != null ? c.OfferCache.Name : "Unknown Offer",
+                    IsActive = c.OfferCache != null && c.OfferCache.IsActive,
+                    Payout = Math.Abs(c.Payout),
+                    c.CreatedAt
+                })
                 .ToListAsync(cancellationToken);
 
-            // Map to DTO
+            // 3. التجميع الحسابي وتطبيق المعادلة المالية للمنصة (Payout + Profit)
+            var offerGroups = rawConversions
+                .GroupBy(c => c.OfferId!)
+                .Select(g =>
+                {
+                    var publisherPayout = g.Sum(x => x.Payout);
+                    var profit = CalculateProfit(publisherPayout, partnerShareRatio);
+                    var totalRevenue = publisherPayout + profit;
+                    var completions = g.Count();
+
+                    return new
+                    {
+                        OfferId = g.Key,
+                        OfferName = g.First().OfferName,
+                        IsActive = g.First().IsActive,
+                        Completions = completions,
+                        PublisherPayout = publisherPayout,
+                        TotalRevenue = totalRevenue,
+                        Epc = completions > 0 ? Math.Round(totalRevenue / completions, 4) : 0m,
+                        LastActivity = g.Max(x => (DateTime?)x.CreatedAt)
+                    };
+                })
+                .AsQueryable();
+
+            // 4. تطبيق التصفية (Search)
+            if (!string.IsNullOrWhiteSpace(request.SearchTerm))
+            {
+                var term = request.SearchTerm.Trim().ToLower();
+                offerGroups = offerGroups.Where(o =>
+                    o.OfferName.ToLower().Contains(term) ||
+                    o.OfferId.ToLower().Contains(term));
+            }
+
+            // 5. حساب الإحصائيات الإجمالية (Summary)
+            var totalCompletions = offerGroups.Sum(o => o.Completions);
+            var overallTotalRevenue = offerGroups.Sum(o => o.TotalRevenue);
+            var overallAvgEpc = totalCompletions > 0 ? Math.Round(overallTotalRevenue / totalCompletions, 4) : 0m;
+            var totalOffersCount = offerGroups.Count();
+
+            // 6. الترتيب (Sorting)
+            offerGroups = request.SortBy?.ToLower() switch
+            {
+                "revenue" => offerGroups.OrderByDescending(o => o.TotalRevenue),
+                "completions" => offerGroups.OrderByDescending(o => o.Completions),
+                _ => offerGroups.OrderByDescending(o => o.TotalRevenue)
+            };
+
+            // 7. الـ Pagination
+            var pagedOffers = offerGroups
+                .Skip((request.PageNumber - 1) * request.PageSize)
+                .Take(request.PageSize)
+                .ToList();
+
+            // 8. بناء الـ Response
             int rankStart = ((request.PageNumber - 1) * request.PageSize) + 1;
             var offerItems = pagedOffers.Select((o, index) => new OfferPerformanceItemDto(
                 Rank: rankStart + index,
-                OfferId: o.Offer!.OfferId,
-                OfferName: o.Offer.Name,
-                OfferShortId: o.Offer.OfferId.Length >= 6 ? o.Offer.OfferId.Substring(0, 6).ToUpper() : o.Offer.OfferId.ToUpper(),
-                Provider: "Klinklabs", // Assuming provider is Klinklabs; adjust as necessary
+                OfferId: o.OfferId,
+                OfferName: o.OfferName,
+                OfferShortId: o.OfferId.Length >= 6 ? o.OfferId[..6].ToUpper() : o.OfferId.ToUpper(),
+                Provider: "Klinklabs",
                 Completions: o.Completions,
-                Revenue: o.Revenue,
-                Epc: o.Completions > 0 ? Math.Round(o.Revenue / o.Completions, 2) : 0m,
+                Revenue: o.TotalRevenue,
+                Epc: o.Epc,
                 LastActivity: o.LastActivity,
-                Status: o.Offer.IsActive ? "Active" : "Hidden"
+                Status: o.IsActive ? "Active" : "Hidden"
             )).ToList();
 
             var summary = new PerformanceSummary(
                 OffersShown: totalOffersCount,
                 TotalCompletions: totalCompletions,
-                TotalRevenue: totalRevenue,
-                AverageEpc: Math.Round(avgEpc, 2)
+                TotalRevenue: overallTotalRevenue,
+                AverageEpc: overallAvgEpc
             );
 
             return new Response(summary, totalOffersCount, offerItems);
         }
+
+        private static decimal CalculateProfit(decimal publisherPayout, decimal shareRatio)
+        {
+            if (shareRatio <= 0 || shareRatio >= 1) return 0m;
+
+            var total = publisherPayout / shareRatio;
+            return Math.Round(total - publisherPayout, 4, MidpointRounding.AwayFromZero);
+        }
     }
 
-    // 5. Endpoint
     public sealed class Endpoint : ICarterModule
     {
         public void AddRoutes(IEndpointRouteBuilder app)
         {
-            app.MapGet("/admin/publishers/{id:guid}/offer-performance", async (
-                Guid id,
-                [FromQuery] string? searchTerm,
-                [FromQuery] string? sortBy,
-                [FromQuery] DateTime? fromDate,
-                [FromQuery] DateTime? toDate,
-                [FromQuery] int pageNumber,
-                [FromQuery] int pageSize,
+            app.MapGet("/admin/publishers/{publisherId:guid}/offer-performance", async (
+                [AsParameters] Query query,
                 ISender sender,
                 CancellationToken cancellationToken) =>
             {
-                // Default pagination values if not provided
-                pageNumber = pageNumber > 0 ? pageNumber : 1;
-                pageSize = pageSize > 0 ? pageSize : 10;
-
-                var query = new Query(id, searchTerm, sortBy, fromDate, toDate, pageNumber, pageSize);
                 var result = await sender.Send(query, cancellationToken);
                 return result.ToHttpResponse();
-            })
-            .RequireAuthorization();
+            });
         }
     }
 }

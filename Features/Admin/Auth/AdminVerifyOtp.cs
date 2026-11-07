@@ -48,6 +48,7 @@ public static class AdminVerifyOtp
         public async Task<Result<Response>> Handle(Command request, CancellationToken cancellationToken)
         {
             var admin = await dbContext.Admins
+                .AsNoTracking()
                 .FirstOrDefaultAsync(
                     x => x.Email == request.Email,
                     cancellationToken);
@@ -67,25 +68,21 @@ public static class AdminVerifyOtp
             if (verificationCode is null)
                 return AdminErrors.InvalidCode;
 
-            System.Console.WriteLine($"Verification Code: {verificationCode.Code}, Expires At: {verificationCode.ExpiresAt}, Attempt Count: {verificationCode.AttemptCount}");
-
             if (verificationCode.ExpiresAt <= DateTime.UtcNow)
             {
                 dbContext.AdminVerificationCodes.Remove(verificationCode);
-
                 await dbContext.SaveChangesAsync(cancellationToken);
 
                 return AdminErrors.ExpiredCode;
             }
 
-            if (verificationCode.Code.Trim() != request.Code.Trim())
+            if (!string.Equals(verificationCode.Code.Trim(), request.Code.Trim(), StringComparison.Ordinal))
             {
                 verificationCode.AttemptCount++;
 
                 if (verificationCode.AttemptCount >= 5)
                 {
                     dbContext.AdminVerificationCodes.Remove(verificationCode);
-
                     await dbContext.SaveChangesAsync(cancellationToken);
 
                     return AdminErrors.ExpiredCode;
@@ -96,9 +93,7 @@ public static class AdminVerifyOtp
                 return AdminErrors.InvalidCode;
             }
 
-            // 4. نجاح التحقق: توليد التوكنز
             var accessToken = jwtService.GenerateAccessToken(claimsFactory.Create(admin));
-
             var refreshToken = jwtService.GenerateRefreshToken();
 
             dbContext.AdminRefreshTokens.Add(
@@ -132,7 +127,8 @@ public static class AdminVerifyOtp
                 {
                     var result = await sender.Send(command, cancellationToken);
                     return result.ToHttpResponse();
-                });
+                })
+                .WithTags("Admin Auth");
         }
     }
 }

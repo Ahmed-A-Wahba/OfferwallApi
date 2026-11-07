@@ -59,9 +59,11 @@ public static class GetDashboardKpis
                 .Select(c => new
                 {
                     c.CreatedAt,
-                    c.Payout,
+                    Payout = Math.Abs(c.Payout),
                     c.Type,
-                    PartnerShareRatio = c.User.Partner.RevenueShareRatio
+                    PartnerShareRatio = c.User != null && c.User.Partner != null
+                        ? c.User.Partner.RevenueShareRatio
+                        : 1.0m
                 })
                 .ToListAsync(cancellationToken);
 
@@ -79,36 +81,42 @@ public static class GetDashboardKpis
             var previousClicksCount = await dbContext.Clicks
                 .CountAsync(c => c.CreatedAt >= previousPeriodStart && c.CreatedAt < request.StartDate, cancellationToken);
 
+            var currentPublisherPayout = currentConversions.Sum(c => c.Payout);
+            var prevPublisherPayout = previousConversions.Sum(c => c.Payout);
 
-            var currentRevenue = currentConversions.Sum(c => c.Payout);
-            var prevRevenue = previousConversions.Sum(c => c.Payout);
+            var currentProfit = currentConversions.Sum(c => CalculateProfit(c.Payout, c.PartnerShareRatio));
+            var prevProfit = previousConversions.Sum(c => CalculateProfit(c.Payout, c.PartnerShareRatio));
 
-
-            var currentProfit = currentConversions.Sum(c => c.Payout * (1 - c.PartnerShareRatio));
-            var prevProfit = previousConversions.Sum(c => c.Payout * (1 - c.PartnerShareRatio));
-
+            var currentTotalRevenue = currentPublisherPayout + currentProfit;
+            var prevTotalRevenue = prevPublisherPayout + prevProfit;
 
             var currentCompleted = currentConversions.Count(c => c.Type == ConversionType.Conversion);
             var prevCompleted = previousConversions.Count(c => c.Type == ConversionType.Conversion);
 
-            var currentEpc = currentClicksCount > 0 ? currentRevenue / currentClicksCount : 0;
-            var prevEpc = previousClicksCount > 0 ? prevRevenue / previousClicksCount : 0;
+            var currentEpc = currentClicksCount > 0 ? currentTotalRevenue / currentClicksCount : 0;
+            var prevEpc = previousClicksCount > 0 ? prevTotalRevenue / previousClicksCount : 0;
 
             var revenueToday = currentConversions
                 .Where(c => c.CreatedAt >= todayStart)
-                .Sum(c => c.Payout);
+                .Sum(c => c.Payout + CalculateProfit(c.Payout, c.PartnerShareRatio));
 
             var revenueYesterday = currentConversions
                 .Where(c => c.CreatedAt >= yesterdayStart && c.CreatedAt < todayStart)
-                .Sum(c => c.Payout);
+                .Sum(c => c.Payout + CalculateProfit(c.Payout, c.PartnerShareRatio));
 
             var activeOffers = await dbContext.OfferCaches.CountAsync(o => o.IsActive, cancellationToken);
-            var approvedRevenue = currentConversions.Where(c => c.Type == ConversionType.Conversion).Sum(c => c.Payout);
-            var rejectedRevenue = currentConversions.Where(c => c.Type == ConversionType.Chargeback).Sum(c => c.Payout);
+
+            var approvedRevenue = currentConversions
+                .Where(c => c.Type == ConversionType.Conversion)
+                .Sum(c => c.Payout + CalculateProfit(c.Payout, c.PartnerShareRatio));
+
+            var rejectedRevenue = currentConversions
+                .Where(c => c.Type == ConversionType.Chargeback)
+                .Sum(c => c.Payout + CalculateProfit(c.Payout, c.PartnerShareRatio));
 
             return new Response(
                 RevenueToday: new KpiMetric(revenueToday, CalculatePercentage(revenueToday, revenueYesterday)),
-                RevenueTotal: new KpiMetric(currentRevenue, CalculatePercentage(currentRevenue, prevRevenue)),
+                RevenueTotal: new KpiMetric(currentTotalRevenue, CalculatePercentage(currentTotalRevenue, prevTotalRevenue)),
                 Profit: new KpiMetric(currentProfit, CalculatePercentage(currentProfit, prevProfit)),
                 Clicks: new KpiMetric(currentClicksCount, CalculatePercentage(currentClicksCount, previousClicksCount)),
                 CompletedOffers: new KpiMetric(currentCompleted, CalculatePercentage(currentCompleted, prevCompleted)),
@@ -117,6 +125,14 @@ public static class GetDashboardKpis
                 ApprovedRevenue: approvedRevenue,
                 RejectedRevenue: rejectedRevenue
             );
+        }
+
+        private static decimal CalculateProfit(decimal publisherPayout, decimal shareRatio)
+        {
+            if (shareRatio <= 0 || shareRatio >= 1) return 0m;
+
+            var total = publisherPayout / shareRatio;
+            return Math.Round(total - publisherPayout, 4, MidpointRounding.AwayFromZero);
         }
 
         private static decimal CalculatePercentage(decimal current, decimal previous)

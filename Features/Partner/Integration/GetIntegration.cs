@@ -62,8 +62,7 @@ public static class GetIntegration
 
                 return result.ToHttpResponse();
             })
-            .RequireAuthorization("PartnerPolicy")
-            .WithTags("Partner Settings");
+            .WithTags("Partner Integration");
         }
     }
 }

@@ -11,6 +11,7 @@ namespace OfferwallApi.Features.Admin.Auth;
 
 public static class AdminLogout
 {
+    [Authorize(Role = "Admin")]
     public sealed record Command(
         string RefreshToken
     ) : ICommand<Result>;
@@ -24,7 +25,6 @@ public static class AdminLogout
         }
     }
 
-    [Authorize(Role = "Admin")]
     internal sealed class Handler(
         ApplicationDbContext dbContext)
         : ICommandHandler<Command, Result>

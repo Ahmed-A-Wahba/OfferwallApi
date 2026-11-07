@@ -12,6 +12,7 @@ namespace OfferwallApi.Features.Admin.Publishers;
 
 public static class GetPublishers
 {
+    [Authorize(Role = "Admin")]
     public sealed record Query(
         int PageNumber = 1,
         int PageSize = 10,
@@ -47,16 +48,15 @@ public static class GetPublishers
         }
     }
 
-    [Authorize(Role = "Admin")]
     internal sealed class Handler(ApplicationDbContext dbContext)
         : IQueryHandler<Query, Result<Response>>
     {
         public async Task<Result<Response>> Handle(Query request, CancellationToken cancellationToken)
         {
-            var query = dbContext.Partners.AsNoTracking();
-
             var pendingCount = await dbContext.Partners
                 .CountAsync(x => x.Status == PublisherStatus.PendingApproval, cancellationToken);
+
+            var query = dbContext.Partners.AsNoTracking();
 
             if (request.Status.HasValue)
             {
@@ -65,32 +65,74 @@ public static class GetPublishers
 
             if (!string.IsNullOrWhiteSpace(request.SearchTerm))
             {
-                var term = request.SearchTerm.Trim().ToLower();
+                var term = request.SearchTerm.Trim();
                 query = query.Where(x =>
-                    x.CompanyName.ToLower().Contains(term) ||
-                    (x.AccountName != null && x.AccountName.ToLower().Contains(term)));
+                    EF.Functions.Like(x.CompanyName, $"%{term}%") ||
+                    (x.AccountName != null && EF.Functions.Like(x.AccountName, $"%{term}%")));
             }
 
             var totalCount = await query.CountAsync(cancellationToken);
 
-            var items = await query
+            // 2. سحب الصفحة المطلوبة فقط من جدول الـ Partners
+            var partnersPage = await query
                 .OrderByDescending(x => x.CreatedAt)
                 .Skip((request.PageNumber - 1) * request.PageSize)
                 .Take(request.PageSize)
-                .Select(x => new PublisherItem(
+                .Select(x => new
+                {
                     x.PartnerId,
+                    x.AccountName,
                     x.CompanyName,
-                    x.CompanyName ?? string.Empty,
                     x.LogoUrl,
                     x.Status,
-                    dbContext.Conversions
-                        .Where(c => c.PartnerId == x.PartnerId && c.Type == ConversionType.Conversion)
-                        .Sum(c => (decimal?)c.Payout) ?? 0,
-                    dbContext.Conversions
-                        .Count(c => c.PartnerId == x.PartnerId && c.Type == ConversionType.Conversion),
+                    x.RevenueShareRatio,
                     x.CreatedAt
-                ))
+                })
                 .ToListAsync(cancellationToken);
+
+            var partnerIds = partnersPage.Select(p => p.PartnerId).ToList();
+
+            var conversionsStats = await dbContext.Conversions
+                .AsNoTracking()
+                .Where(c => partnerIds.Contains(c.PartnerId) && c.Type == ConversionType.Conversion)
+                .Select(c => new
+                {
+                    c.PartnerId,
+                    Payout = Math.Abs(c.Payout)
+                })
+                .ToListAsync(cancellationToken);
+
+            var statsLookup = conversionsStats
+                .GroupBy(c => c.PartnerId)
+                .ToDictionary(
+                    g => g.Key,
+                    g => new
+                    {
+                        CompletedCount = g.Count(),
+                        TotalPayout = g.Sum(x => x.Payout)
+                    }
+                );
+
+            var items = partnersPage.Select(p =>
+            {
+                var hasStats = statsLookup.TryGetValue(p.PartnerId, out var stat);
+                var completedOffers = hasStats ? stat!.CompletedCount : 0;
+                var publisherPayout = hasStats ? stat!.TotalPayout : 0m;
+
+                var profit = CalculateProfit(publisherPayout, p.RevenueShareRatio);
+                var totalRevenue = publisherPayout + profit;
+
+                return new PublisherItem(
+                    PublisherId: p.PartnerId,
+                    Name: p.AccountName ?? p.CompanyName,
+                    CompanyName: p.CompanyName ?? string.Empty,
+                    LogoUrl: p.LogoUrl,
+                    Status: p.Status,
+                    TotalRevenue: totalRevenue,
+                    CompletedOffers: completedOffers,
+                    RegisteredAt: p.CreatedAt
+                );
+            }).ToList();
 
             return new Response(
                 items,
@@ -99,6 +141,14 @@ public static class GetPublishers
                 request.PageSize,
                 pendingCount
             );
+        }
+
+        private static decimal CalculateProfit(decimal publisherPayout, decimal shareRatio)
+        {
+            if (shareRatio <= 0 || shareRatio >= 1) return 0m;
+
+            var total = publisherPayout / shareRatio;
+            return Math.Round(total - publisherPayout, 4, MidpointRounding.AwayFromZero);
         }
     }
 
@@ -113,8 +163,7 @@ public static class GetPublishers
             {
                 var result = await sender.Send(query, cancellationToken);
                 return result.ToHttpResponse();
-            })
-            .RequireAuthorization();
+            });
         }
     }
 }

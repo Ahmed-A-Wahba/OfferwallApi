@@ -11,6 +11,7 @@ namespace OfferwallApi.Features.Admin.Publishers;
 
 public static class UpdateChargebackResponsibility
 {
+    [Authorize(Role = "Admin")]
     public sealed record Command(
         Guid PublisherId,
         bool HasChargebacks
@@ -24,7 +25,6 @@ public static class UpdateChargebackResponsibility
         }
     }
 
-    [Authorize(Role = "Admin")]
     internal sealed class Handler(ApplicationDbContext dbContext)
         : ICommandHandler<Command, Result>
     {
@@ -58,8 +58,7 @@ public static class UpdateChargebackResponsibility
                 var command = body with { PublisherId = id };
                 var result = await sender.Send(command, cancellationToken);
                 return result.ToHttpResponse();
-            })
-            .RequireAuthorization();
+            });
         }
     }
 }

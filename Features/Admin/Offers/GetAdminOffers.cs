@@ -1,7 +1,6 @@
 using Carter;
 using FluentValidation;
 using MediatR;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using OfferwallApi.Infrastructure.Authorization;
 using OfferwallApi.Infrastructure.Messaging;
@@ -14,6 +13,7 @@ namespace OfferwallApi.Features.Admin.Offers;
 public static class GetAdminOffers
 {
     // 1. Query
+    [Authorize(Role = "Admin")]
     public sealed record Query(
         string? SearchTerm = null,
         string? Status = null, // "Active" or "Hidden"
@@ -60,94 +60,120 @@ public static class GetAdminOffers
     }
 
     // 4. Handler
-    [Authorize(Role = "Admin")]
     internal sealed class Handler(ApplicationDbContext dbContext)
         : IQueryHandler<Query, Result<Response>>
     {
         public async Task<Result<Response>> Handle(Query request, CancellationToken cancellationToken)
         {
-            var query = dbContext.OfferCaches.AsNoTracking().AsQueryable();
+            var query = dbContext.OfferCaches.AsNoTracking();
 
-            // Calculate Summary Statistics (Before applying pagination/search filters)
             var today = DateTime.UtcNow.Date;
 
+            // 1. حساب الإحصائيات العامة (Summary Stats)
             var summaryStats = await query
+                .Select(o => new
+                {
+                    IsToday = o.CreatedAt >= today,
+                    o.IsActive
+                })
                 .GroupBy(x => 1)
                 .Select(g => new OffersSummary(
                     g.Count(),
-                    g.Count(o => o.CreatedAt >= today),
+                    g.Count(o => o.IsToday),
                     g.Count(o => o.IsActive),
                     g.Count(o => !o.IsActive)
                 ))
                 .FirstOrDefaultAsync(cancellationToken)
                 ?? new OffersSummary(0, 0, 0, 0);
 
-            // Apply Filters
+            // 2. تطبيق الفلاتر
             if (!string.IsNullOrWhiteSpace(request.SearchTerm))
             {
-                var searchTerm = request.SearchTerm.ToLower();
+                var term = request.SearchTerm.Trim();
                 query = query.Where(o =>
-                    o.Name.ToLower().Contains(searchTerm) ||
-                    o.OfferId.ToLower().Contains(searchTerm));
+                    EF.Functions.Like(o.Name, $"%{term}%") ||
+                    EF.Functions.Like(o.OfferId, $"%{term}%"));
             }
 
-            if (!string.IsNullOrWhiteSpace(request.Status) && request.Status != "All Status")
+            if (!string.IsNullOrWhiteSpace(request.Status) && !request.Status.Equals("All Status", StringComparison.OrdinalIgnoreCase))
             {
                 bool isActive = request.Status.Equals("Active", StringComparison.OrdinalIgnoreCase);
                 query = query.Where(o => o.IsActive == isActive);
             }
 
-            // Note: If you add Provider/Source or Countries to OfferCache later, you can filter them here:
-            // if (!string.IsNullOrWhiteSpace(request.Source) && request.Source != "All Sources") ...
-
-            // Get total count for pagination
             int totalCount = await query.CountAsync(cancellationToken);
 
-            // Apply Pagination
+            // 3. تطبيق الـ Pagination
             var pagedOffers = await query
                 .OrderByDescending(o => o.CreatedAt)
                 .Skip((request.PageNumber - 1) * request.PageSize)
                 .Take(request.PageSize)
                 .ToListAsync(cancellationToken);
 
-            // Fetch conversions stats for the current page offers to calculate EPC & Publishers
             var offerIds = pagedOffers.Select(o => o.OfferId).ToList();
 
-            var statsQuery = await dbContext.Conversions
+            // 4. سحب تحويلات هذه العروض وحساب الـ Total Revenue والـ EPC بالمعيار المالي الموحد
+            var rawConversions = await dbContext.Conversions
                 .AsNoTracking()
                 .Where(c => offerIds.Contains(c.OfferId) && c.Type == ConversionType.Conversion)
-                .GroupBy(c => c.OfferId)
-                .Select(g => new
+                .Select(c => new
                 {
-                    OfferId = g.Key,
-                    Completions = g.Count(),
-                    Revenue = g.Sum(x => x.Payout),
-                    PublishersCount = g.Select(x => x.PartnerId).Distinct().Count()
+                    c.OfferId,
+                    c.PartnerId,
+                    Payout = Math.Abs(c.Payout),
+                    PartnerShareRatio = c.User != null && c.User.Partner != null
+                        ? c.User.Partner.RevenueShareRatio
+                        : 1.0m
                 })
-                .ToDictionaryAsync(x => x.OfferId, cancellationToken);
+                .ToListAsync(cancellationToken);
 
-            // Map to DTO
+            var statsLookup = rawConversions
+                .GroupBy(c => c.OfferId)
+                .ToDictionary(
+                    g => g.Key,
+                    g =>
+                    {
+                        var completions = g.Count();
+                        var totalRevenue = g.Sum(x => x.Payout + CalculateProfit(x.Payout, x.PartnerShareRatio));
+                        var publishersCount = g.Select(x => x.PartnerId).Distinct().Count();
+
+                        return new
+                        {
+                            Completions = completions,
+                            TotalRevenue = totalRevenue,
+                            Epc = completions > 0 ? Math.Round(totalRevenue / completions, 4) : 0m,
+                            PublishersCount = publishersCount
+                        };
+                    }
+                );
+
+            // 5. تحويل البيانات إلى DTOs
             var offerItems = pagedOffers.Select(o =>
             {
-                var stats = statsQuery.GetValueOrDefault(o.OfferId);
-                var completions = stats?.Completions ?? 0;
-                var revenue = stats?.Revenue ?? 0m;
-                var epc = completions > 0 ? revenue / completions : 0m;
+                var stats = statsLookup.GetValueOrDefault(o.OfferId);
 
                 return new OfferItemDto(
                     OfferId: o.OfferId,
-                    ShortId: o.OfferId.Length >= 6 ? o.OfferId.Substring(0, 6).ToUpper() : o.OfferId.ToUpper(),
+                    ShortId: o.OfferId.Length >= 6 ? o.OfferId[..6].ToUpper() : o.OfferId.ToUpper(),
                     Name: o.Name,
                     LogoUrl: o.LogoUrl,
-                    Source: "Klinklabs", // Adjust this if you add 'Provider' to OfferCache
+                    Source: "Klinklabs",
                     Payout: o.TotalReward,
-                    Epc: Math.Round(epc, 2),
+                    Epc: stats?.Epc ?? 0m,
                     PublishersCount: stats?.PublishersCount ?? 0,
                     Status: o.IsActive ? "ACTIVE" : "HIDDEN"
                 );
             }).ToList();
 
             return new Response(summaryStats, totalCount, offerItems);
+        }
+
+        private static decimal CalculateProfit(decimal publisherPayout, decimal shareRatio)
+        {
+            if (shareRatio <= 0 || shareRatio >= 1) return 0m;
+
+            var total = publisherPayout / shareRatio;
+            return Math.Round(total - publisherPayout, 4, MidpointRounding.AwayFromZero);
         }
     }
 
@@ -157,24 +183,13 @@ public static class GetAdminOffers
         public void AddRoutes(IEndpointRouteBuilder app)
         {
             app.MapGet("/admin/offers", async (
-                [FromQuery] string? searchTerm,
-                [FromQuery] string? status,
-                [FromQuery] string? source,
-                [FromQuery] string? country,
-                [FromQuery] int pageNumber,
-                [FromQuery] int pageSize,
+                [AsParameters] Query query,
                 ISender sender,
                 CancellationToken cancellationToken) =>
             {
-                pageNumber = pageNumber > 0 ? pageNumber : 1;
-                pageSize = pageSize > 0 ? pageSize : 10;
-
-                var query = new Query(searchTerm, status, source, country, pageNumber, pageSize);
                 var result = await sender.Send(query, cancellationToken);
-
                 return result.ToHttpResponse();
-            })
-            .RequireAuthorization();
+            });
         }
     }
 }

@@ -12,6 +12,7 @@ namespace OfferwallApi.Features.Admin.Publishers;
 
 public static class ApprovePublisher
 {
+    [Authorize(Role = "Admin")]
     public sealed record Command(Guid PublisherId) : ICommand<Result>;
 
     internal sealed class Validator : AbstractValidator<Command>
@@ -22,7 +23,6 @@ public static class ApprovePublisher
         }
     }
 
-    [Authorize(Role = "Admin")]
     internal sealed class Handler(ApplicationDbContext dbContext)
         : ICommandHandler<Command, Result>
     {
@@ -57,8 +57,7 @@ public static class ApprovePublisher
                 var command = new Command(id);
                 var result = await sender.Send(command, cancellationToken);
                 return result.ToHttpResponse();
-            })
-            .RequireAuthorization();
+            });
         }
     }
 }

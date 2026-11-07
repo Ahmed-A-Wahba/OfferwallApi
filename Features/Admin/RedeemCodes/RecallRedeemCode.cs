@@ -12,7 +12,7 @@ namespace OfferwallApi.Features.Admin.RedeemCodes;
 
 public static class RecallRedeemCode
 {
-    // 1. Command
+    [Authorize(Role = "Admin")]
     public sealed record Command(Guid CouponId) : ICommand<Result>;
 
     // 2. Validator
@@ -25,41 +25,26 @@ public static class RecallRedeemCode
     }
 
     // 3. Handler
-    [Authorize(Role = "Admin")]
     internal sealed class Handler(ApplicationDbContext dbContext)
         : ICommandHandler<Command, Result>
     {
         public async Task<Result> Handle(Command request, CancellationToken cancellationToken)
         {
+            // 1. استعلام خفيف على الكوبون فقط بدون Include للشركاء
             var coupon = await dbContext.Coupons
-                .Include(c => c.Partner)
                 .FirstOrDefaultAsync(c => c.CouponId == request.CouponId, cancellationToken);
 
             if (coupon is null)
                 return Error.NotFound("Coupon.NotFound", "The specified redeem code was not found.");
 
-            // التأكد من أن الكود بحالة Active فقط لإلغائه
+            // 2. التأكد من أن الكود في حالة Active فقط لإلغائه
             if (coupon.Status != CouponStatus.Active)
-                return Error.Validation("Coupon.CannotRecall", $"Cannot recall a code with status '{coupon.Status}'. Only ACTIVE codes can be recalled.");
+                return Error.Validation(
+                    "Coupon.CannotRecall",
+                    $"Cannot recall a code with status '{coupon.Status}'. Only ACTIVE codes can be recalled.");
 
-            // 1. تحديث حالة الكوبون إلى Recalled
-            coupon.Status = CouponStatus.Cancelled; // أو CouponStatus.Recalled إذا كان لديك حالة Recalled
+            coupon.Status = CouponStatus.Cancelled;
             coupon.UpdatedAt = DateTime.UtcNow;
-
-            // 2. إضافة المعاملة للـ WalletTransactions إذا أردت تسجيل عملية الاسترجاع للرموز/النقاط
-            /*
-            var pointsToRefund = (int)(coupon.Value * coupon.Partner.PointsPerUsd);
-            var refundTransaction = new WalletTransaction
-            {
-                WalletTransactionId = Guid.NewGuid(),
-                UserId = coupon.UserId,
-                CouponId = coupon.CouponId,
-                Amount = pointsToRefund,
-                Type = TransactionType.Refund, // أو النوع المناسب لديك
-                CreatedAt = DateTime.UtcNow
-            };
-            dbContext.WalletTransactions.Add(refundTransaction);
-            */
 
             await dbContext.SaveChangesAsync(cancellationToken);
 
@@ -81,8 +66,7 @@ public static class RecallRedeemCode
                 var result = await sender.Send(command, cancellationToken);
 
                 return result.ToHttpResponse();
-            })
-            .RequireAuthorization();
+            });
         }
     }
 }

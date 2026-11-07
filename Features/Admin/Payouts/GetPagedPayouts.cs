@@ -1,7 +1,6 @@
 using Carter;
 using FluentValidation;
 using MediatR;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using OfferwallApi.Infrastructure.Authorization;
 using OfferwallApi.Infrastructure.Messaging;
@@ -64,7 +63,6 @@ public static class GetPagedPayouts
         public async Task<Result<Response>> Handle(Query request, CancellationToken cancellationToken)
         {
             var query = dbContext.Payouts
-                .Include(p => p.Partner)
                 .AsNoTracking()
                 .AsQueryable();
 
@@ -72,7 +70,7 @@ public static class GetPagedPayouts
             if (request.PartnerId.HasValue && request.PartnerId.Value != Guid.Empty)
                 query = query.Where(p => p.PartnerId == request.PartnerId);
 
-            if (!string.IsNullOrWhiteSpace(request.Status) && request.Status != "All Statuses")
+            if (!string.IsNullOrWhiteSpace(request.Status) && !request.Status.Equals("All Statuses", StringComparison.OrdinalIgnoreCase))
             {
                 if (Enum.TryParse<PayoutStatus>(request.Status, true, out var parsedStatus))
                     query = query.Where(p => p.Status == parsedStatus);
@@ -86,36 +84,53 @@ public static class GetPagedPayouts
 
             int totalCount = await query.CountAsync(cancellationToken);
 
-            // 2. جلب البيانات
+            // 2. جلب البيانات واسقاط الحقول المطلوبة (Projection)
             var pagedData = await query
                 .OrderByDescending(p => p.CreatedAt)
                 .Skip((request.PageNumber - 1) * request.PageSize)
                 .Take(request.PageSize)
+                .Select(p => new
+                {
+                    p.PayoutId,
+                    p.Amount,
+                    p.RedemptionCount,
+                    p.PeriodStart,
+                    p.PeriodEnd,
+                    p.Status,
+                    p.CreatedAt,
+                    CompanyName = p.Partner != null ? p.Partner.CompanyName : "Unknown",
+                    AccountName = p.Partner != null ? p.Partner.AccountName : null,
+                    RevenueShareRatio = p.Partner != null ? p.Partner.RevenueShareRatio : 0.85m,
+                    PayoutMethod = p.Partner != null
+                        ? p.Partner.PayoutMethod.ToString()
+                        : "Bank Transfer"
+                })
                 .ToListAsync(cancellationToken);
 
-            // 3. تحويل البيانات (Mapping) لتطابق واجهة المستخدم
             var payoutsList = pagedData.Select(p =>
             {
-                // حسابات افتراضية للـ Breakdown (يمكنك استبدالها لاحقاً بحقول حقيقية من الـ DB)
-                decimal totalRevenue = p.Amount / 0.85m; // افتراض نسبة ربح 85% للناشر
-                decimal netProfit = totalRevenue - p.Amount;
-                int estimatedPoints = p.RedemptionCount * 1000; // مجرد رقم تقريبي لعرضه
+                var publisherPayout = Math.Abs(p.Amount);
+                var netProfit = CalculateProfit(publisherPayout, p.RevenueShareRatio);
+                var totalRevenue = publisherPayout + netProfit;
+
+                var sharePercentageStr = $"{Math.Round(p.RevenueShareRatio * 100, 1)}%";
+                var publisherName = p.AccountName ?? p.CompanyName;
 
                 return new PayoutItemDto(
                     PayoutId: p.PayoutId,
-                    PublisherName: p.Partner?.CompanyName ?? "Unknown",
-                    PublisherCompany: $"{p.Partner?.CompanyName}",
+                    PublisherName: publisherName,
+                    PublisherCompany: p.CompanyName,
                     Period: $"{p.PeriodStart:MMM d} - {p.PeriodEnd:MMM d, yyyy}",
-                    Amount: p.Amount,
-                    PaymentMethod: "Bank Transfer", // Mock (يجب إضافته في جدول الـ Partner لاحقاً)
-                    ScheduledDate: p.PeriodEnd.AddMonths(1).Date, // Net30
+                    Amount: publisherPayout,
+                    PaymentMethod: p.PayoutMethod,
+                    ScheduledDate: p.PeriodEnd.AddMonths(1).Date,
                     Status: MapStatusForUi(p.Status),
                     Breakdown: new PayoutBreakdownDto(
                         TotalRedemptions: p.RedemptionCount,
-                        TotalPoints: estimatedPoints,
-                        RevenueShare: "85%", // Mock
+                        TotalPoints: p.RedemptionCount * 1000,
+                        RevenueShare: sharePercentageStr,
                         TotalRevenue: totalRevenue,
-                        Chargebacks: 0.00m, // Mock
+                        Chargebacks: 0.00m,
                         NetProfit: netProfit
                     )
                 );
@@ -124,7 +139,14 @@ public static class GetPagedPayouts
             return new Response(totalCount, payoutsList);
         }
 
-        // دالة لتحويل حالة الداتابيز لنصوص تطابق الـ UI Badges
+        private static decimal CalculateProfit(decimal publisherPayout, decimal shareRatio)
+        {
+            if (shareRatio <= 0 || shareRatio >= 1) return 0m;
+
+            var total = publisherPayout / shareRatio;
+            return Math.Round(total - publisherPayout, 4, MidpointRounding.AwayFromZero);
+        }
+
         private static string MapStatusForUi(PayoutStatus status) => status switch
         {
             PayoutStatus.Pending => "SCHEDULED",
@@ -139,24 +161,13 @@ public static class GetPagedPayouts
         public void AddRoutes(IEndpointRouteBuilder app)
         {
             app.MapGet("/admin/payouts", async (
-                [FromQuery] Guid? partnerId,
-                [FromQuery] string? status,
-                [FromQuery] DateTime? startDate,
-                [FromQuery] DateTime? endDate,
-                [FromQuery] int pageNumber,
-                [FromQuery] int pageSize,
+                [AsParameters] Query query,
                 ISender sender,
                 CancellationToken cancellationToken) =>
             {
-                pageNumber = pageNumber > 0 ? pageNumber : 1;
-                pageSize = pageSize > 0 ? pageSize : 10;
-
-                var query = new Query(partnerId, status, startDate, endDate, pageNumber, pageSize);
                 var result = await sender.Send(query, cancellationToken);
-
                 return result.ToHttpResponse();
-            })
-            .RequireAuthorization();
+            });
         }
     }
 }

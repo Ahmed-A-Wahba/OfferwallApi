@@ -11,10 +11,9 @@ namespace OfferwallApi.Features.Admin.Publishers;
 
 public static class GetPublisherPaymentDetails
 {
-    // 1. Query
+    [Authorize(Role = "Admin")]
     public sealed record Query(Guid PublisherId) : IQuery<Result<Response>>;
 
-    // 2. Response DTO
     public sealed record Response(
         Guid PublisherId,
         string DisplayId,
@@ -30,7 +29,6 @@ public static class GetPublisherPaymentDetails
         string? BankAddress
     );
 
-    // 3. Validator
     internal sealed class Validator : AbstractValidator<Query>
     {
         public Validator()
@@ -39,8 +37,6 @@ public static class GetPublisherPaymentDetails
         }
     }
 
-    // 4. Handler
-    [Authorize(Role = "Admin")]
     internal sealed class Handler(ApplicationDbContext dbContext)
         : IQueryHandler<Query, Result<Response>>
     {
@@ -87,7 +83,6 @@ public static class GetPublisherPaymentDetails
         }
     }
 
-    // 5. Endpoint Definition
     public sealed class Endpoint : ICarterModule
     {
         public void AddRoutes(IEndpointRouteBuilder app)
@@ -101,8 +96,7 @@ public static class GetPublisherPaymentDetails
                 var result = await sender.Send(query, cancellationToken);
 
                 return result.ToHttpResponse();
-            })
-            .RequireAuthorization();
+            });
         }
     }
 }

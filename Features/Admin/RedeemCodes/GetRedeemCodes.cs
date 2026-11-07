@@ -1,7 +1,6 @@
 using Carter;
 using FluentValidation;
 using MediatR;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using OfferwallApi.Infrastructure.Authorization;
 using OfferwallApi.Infrastructure.Messaging;
@@ -14,6 +13,7 @@ namespace OfferwallApi.Features.Admin.RedeemCodes;
 public static class GetRedeemCodes
 {
     // 1. Query
+    [Authorize(Role = "Admin")]
     public sealed record Query(
         string? SearchTerm = null,
         string? Status = null, // "All", "Active", "Used", "Expired", "Recalled"
@@ -49,24 +49,23 @@ public static class GetRedeemCodes
     }
 
     // 4. Handler
-    [Authorize(Role = "Admin")]
     internal sealed class Handler(ApplicationDbContext dbContext)
         : IQueryHandler<Query, Result<Response>>
     {
         public async Task<Result<Response>> Handle(Query request, CancellationToken cancellationToken)
         {
-            var query = dbContext.Coupons.AsNoTracking().AsQueryable();
+            var query = dbContext.Coupons.AsNoTracking();
 
-            // Apply Search Filter
+            // 1. تطبيق الفلترة بالبحث
             if (!string.IsNullOrWhiteSpace(request.SearchTerm))
             {
-                var searchTerm = request.SearchTerm.ToLower();
+                var term = request.SearchTerm.Trim();
                 query = query.Where(x =>
-                    x.Code.ToLower().Contains(searchTerm) ||
-                    x.UserId.ToString().ToLower().Contains(searchTerm));
+                    EF.Functions.Like(x.Code, $"%{term}%") ||
+                    EF.Functions.Like(x.UserId.ToString(), $"%{term}%"));
             }
 
-            // Apply Status Filter
+            // 2. تطبيق فلترة الحالة (Status Filter)
             if (!string.IsNullOrWhiteSpace(request.Status) && !request.Status.Equals("All", StringComparison.OrdinalIgnoreCase))
             {
                 if (Enum.TryParse<CouponStatus>(request.Status, true, out var parsedStatus))
@@ -75,10 +74,10 @@ public static class GetRedeemCodes
                 }
             }
 
-            // Get total count for pagination
+            // 3. حساب إجمالي العناصر للصفحة
             int totalCount = await query.CountAsync(cancellationToken);
 
-            // Fetch required data only including PointsPerUsd from Partner
+            // 4. اسقاط البيانات مع الوقاية من NullReferenceException في علاقة الشريك
             var pagedData = await query
                 .OrderByDescending(x => x.CreatedAt)
                 .Skip((request.PageNumber - 1) * request.PageSize)
@@ -92,21 +91,27 @@ public static class GetRedeemCodes
                     x.Status,
                     x.CreatedAt,
                     x.ExpiresAt,
-                    PointsPerUsd = x.Partner.PointsPerUsd // بنجيبها من جدول الشريك مباشرة هنا
+                    PointsPerUsd = x.Partner != null ? x.Partner.PointsPerUsd : 1000 // افتراضي 1000 نقطة للدولار
                 })
                 .ToListAsync(cancellationToken);
 
-            // Map to DTO in memory
-            var codeItems = pagedData.Select(x => new RedeemCodeItemDto(
-                Id: x.CouponId,
-                Code: x.Code,
-                Points: (int)(x.Value * x.PointsPerUsd), // الحساب بالاعتماد على قيمة البارتنر
-                Value: x.Value,
-                UserId: $"#USR-{x.UserId.ToString().Substring(0, 5).ToUpper()}",
-                Status: x.Status.ToString().ToUpper(),
-                CreatedAt: x.CreatedAt,
-                ExpiresAt: x.ExpiresAt
-            )).ToList();
+            // 5. تحويل البيانات لـ DTO
+            var codeItems = pagedData.Select(x =>
+            {
+                var userIdStr = x.UserId.ToString();
+                var shortUserId = userIdStr.Length >= 5 ? userIdStr[..5].ToUpper() : userIdStr.ToUpper();
+
+                return new RedeemCodeItemDto(
+                    Id: x.CouponId,
+                    Code: x.Code,
+                    Points: (int)(x.Value * x.PointsPerUsd),
+                    Value: x.Value,
+                    UserId: $"#USR-{shortUserId}",
+                    Status: x.Status.ToString().ToUpper(),
+                    CreatedAt: x.CreatedAt,
+                    ExpiresAt: x.ExpiresAt
+                );
+            }).ToList();
 
             return new Response(totalCount, codeItems);
         }
@@ -118,22 +123,13 @@ public static class GetRedeemCodes
         public void AddRoutes(IEndpointRouteBuilder app)
         {
             app.MapGet("/admin/redeem-codes", async (
-                [FromQuery] string? searchTerm,
-                [FromQuery] string? status,
-                [FromQuery] int pageNumber,
-                [FromQuery] int pageSize,
+                [AsParameters] Query query,
                 ISender sender,
                 CancellationToken cancellationToken) =>
             {
-                pageNumber = pageNumber > 0 ? pageNumber : 1;
-                pageSize = pageSize > 0 ? pageSize : 10;
-
-                var query = new Query(searchTerm, status, pageNumber, pageSize);
                 var result = await sender.Send(query, cancellationToken);
-
                 return result.ToHttpResponse();
-            })
-            .RequireAuthorization();
+            });
         }
     }
 }

@@ -2,6 +2,7 @@ using Carter;
 using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using OfferwallApi.Infrastructure.Authorization;
 using OfferwallApi.Infrastructure.Messaging;
 using OfferwallApi.Infrastructure.Persistence;
 using OfferwallApi.Infrastructure.Results;
@@ -10,6 +11,7 @@ namespace OfferwallApi.Features.Admin.Dashboard;
 
 public static class GetDashboardTopPublishers
 {
+    [Authorize(Role = "Admin")]
     public sealed record Query(
         DateTime StartDate,
         DateTime EndDate,
@@ -39,22 +41,41 @@ public static class GetDashboardTopPublishers
     {
         public async Task<Result<List<PublisherStat>>> Handle(Query request, CancellationToken cancellationToken)
         {
+            var rawData = await dbContext.Conversions
+                .AsNoTracking()
+                .Where(c => c.CreatedAt >= request.StartDate.Date && c.CreatedAt <= request.EndDate.Date.AddDays(1).AddTicks(-1))
+                .Select(c => new
+                {
+                    CompanyName = c.User != null && c.User.Partner != null ? c.User.Partner.CompanyName : "Unknown Publisher",
+                    PartnerId = c.User != null ? c.User.PartnerId : (Guid?)null,
+                    Payout = Math.Abs(c.Payout),
+                    PartnerShareRatio = c.User != null && c.User.Partner != null
+                        ? c.User.Partner.RevenueShareRatio
+                        : 1.0m
+                })
+                .Where(x => x.PartnerId != null)
+                .ToListAsync(cancellationToken);
 
-            var query = from c in dbContext.Conversions
-                        where c.CreatedAt >= request.StartDate && c.CreatedAt <= request.EndDate
-                        join u in dbContext.Users on c.UserId equals u.UserId
-                        join p in dbContext.Partners on u.PartnerId equals p.PartnerId
-                        group c by new { p.PartnerId, p.CompanyName } into g
-                        orderby g.Sum(x => x.Payout) descending
-                        select new PublisherStat(
-                            g.Key.CompanyName,
-                            g.Count(),
-                            g.Sum(x => x.Payout)
-                        );
-
-            var topPublishers = await query.Take(request.Limit).ToListAsync(cancellationToken);
+            var topPublishers = rawData
+                .GroupBy(x => new { x.PartnerId, x.CompanyName })
+                .Select(g => new PublisherStat(
+                    Name: g.Key.CompanyName,
+                    ConversionsCount: g.Count(),
+                    TotalRevenue: g.Sum(x => x.Payout + CalculateProfit(x.Payout, x.PartnerShareRatio))
+                ))
+                .OrderByDescending(x => x.TotalRevenue)
+                .Take(request.Limit)
+                .ToList();
 
             return topPublishers;
+        }
+
+        private static decimal CalculateProfit(decimal publisherPayout, decimal shareRatio)
+        {
+            if (shareRatio <= 0 || shareRatio >= 1) return 0m;
+
+            var total = publisherPayout / shareRatio;
+            return Math.Round(total - publisherPayout, 4, MidpointRounding.AwayFromZero);
         }
     }
 

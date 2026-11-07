@@ -1,7 +1,6 @@
 using Carter;
 using FluentValidation;
 using MediatR;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using OfferwallApi.Infrastructure.Authorization;
 using OfferwallApi.Infrastructure.Messaging;
@@ -13,6 +12,7 @@ namespace OfferwallApi.Features.Admin.Publishers;
 
 public static class GetPublisherRevenueStats
 {
+    [Authorize(Role = "Admin")]
     public sealed record Query(
         Guid PublisherId,
         DateTime? FromDate = null,
@@ -53,7 +53,6 @@ public static class GetPublisherRevenueStats
         }
     }
 
-    [Authorize(Role = "Admin")]
     internal sealed class Handler(ApplicationDbContext dbContext)
         : IQueryHandler<Query, Result<Response>>
     {
@@ -69,48 +68,61 @@ public static class GetPublisherRevenueStats
             var fromDate = request.FromDate ?? DateTime.UtcNow.AddMonths(-6);
             var toDate = request.ToDate ?? DateTime.UtcNow;
 
-            var conversionsQuery = dbContext.Conversions
+            var conversions = await dbContext.Conversions
                 .AsNoTracking()
-                .Where(c => c.PartnerId == request.PublisherId && c.CreatedAt >= fromDate && c.CreatedAt <= toDate);
+                .Where(c => c.PartnerId == request.PublisherId && c.CreatedAt >= fromDate && c.CreatedAt <= toDate)
+                .Select(c => new
+                {
+                    Payout = Math.Abs(c.Payout),
+                    c.Type,
+                    c.CreatedAt
+                })
+                .ToListAsync(cancellationToken);
 
-            decimal totalRevenue = await conversionsQuery
-                .Where(c => c.Type == ConversionType.Conversion)
-                .SumAsync(c => (decimal?)c.Payout, cancellationToken) ?? 0m;
+            var validConversions = conversions.Where(c => c.Type == ConversionType.Conversion).ToList();
 
-            decimal totalProfit = totalRevenue * (1 - partner.RevenueShareRatio);
 
-            decimal totalChargebacks = await conversionsQuery
+            decimal publisherPayout = validConversions.Sum(c => c.Payout);
+            decimal totalProfit = CalculateProfit(publisherPayout, partner.RevenueShareRatio);
+            decimal totalRevenue = publisherPayout + totalProfit;
+
+            decimal totalChargebacks = conversions
                 .Where(c => c.Type == ConversionType.Chargeback)
-                .SumAsync(c => (decimal?)c.Payout, cancellationToken) ?? 0m;
+                .Sum(c => c.Payout);
 
             decimal pendingRevenue = await dbContext.Payouts
                 .AsNoTracking()
                 .Where(p => p.PartnerId == request.PublisherId && p.Status == PayoutStatus.Pending)
                 .SumAsync(p => (decimal?)p.Amount, cancellationToken) ?? 0m;
 
-            var endDate = request.ToDate ?? DateTime.UtcNow;
+
             var last6Months = Enumerable.Range(0, 6)
-                .Select(i => endDate.AddMonths(-i))
+                .Select(i => toDate.AddMonths(-i))
                 .Select(d => new { d.Year, d.Month })
                 .Reverse()
                 .ToList();
 
-            var chartData = await conversionsQuery
-                .Where(c => c.Type == ConversionType.Conversion)
+            var chartDataLookup = validConversions
                 .GroupBy(c => new { c.CreatedAt.Year, c.CreatedAt.Month })
-                .Select(g => new
-                {
-                    Year = g.Key.Year,
-                    Month = g.Key.Month,
-                    Total = g.Sum(c => c.Payout)
-                })
-                .ToListAsync(cancellationToken);
+                .ToDictionary(
+                    g => g.Key,
+                    g =>
+                    {
+                        var payoutSum = g.Sum(x => x.Payout);
+                        return payoutSum + CalculateProfit(payoutSum, partner.RevenueShareRatio);
+                    }
+                );
 
             var revenueChart = last6Months
-                .Select(m => new RevenueChartDataPoint(
-                    MonthLabel: new DateTime(m.Year, m.Month, 1).ToString("MMM").ToUpper(),
-                    Value: chartData.FirstOrDefault(c => c.Year == m.Year && c.Month == m.Month)?.Total ?? 0m
-                ))
+                .Select(m =>
+                {
+                    var key = new { m.Year, m.Month };
+                    var val = chartDataLookup.TryGetValue(key, out var monthlyTotal) ? monthlyTotal : 0m;
+                    return new RevenueChartDataPoint(
+                        MonthLabel: new DateTime(m.Year, m.Month, 1).ToString("MMM").ToUpper(),
+                        Value: val
+                    );
+                })
                 .ToList();
 
             var payouts = await dbContext.Payouts
@@ -118,16 +130,27 @@ public static class GetPublisherRevenueStats
                 .Where(p => p.PartnerId == request.PublisherId)
                 .OrderByDescending(p => p.CreatedAt)
                 .Take(10)
-                .Select(p => new TransferRecordDto(
+                .Select(p => new
+                {
                     p.PayoutId,
                     p.CreatedAt,
-                    $"{p.PeriodStart:MMM d}–{p.PeriodEnd:MMM d, yyyy}",
-                    p.Amount,
-                    partner.PayoutMethod.ToString(),
-                    $"TRF-{p.CreatedAt:yyyy}-{p.PayoutId.ToString().Substring(0, 5).ToUpper()}",
-                    null
-                ))
+                    p.PeriodStart,
+                    p.PeriodEnd,
+                    p.Amount
+                })
                 .ToListAsync(cancellationToken);
+
+            string payoutMethodName = partner.PayoutMethod.ToString() ?? "N/A";
+
+            var transferRecords = payouts.Select(p => new TransferRecordDto(
+                PayoutId: p.PayoutId,
+                TransferDate: p.CreatedAt,
+                Period: $"{p.PeriodStart:MMM d}–{p.PeriodEnd:MMM d, yyyy}",
+                Amount: p.Amount,
+                Method: payoutMethodName,
+                ReferenceNumber: $"TRF-{p.CreatedAt:yyyy}-{p.PayoutId.ToString()[..5].ToUpper()}",
+                ProofUrl: null
+            )).ToList();
 
             var response = new Response(
                 PublisherAbsorbsChargebacks: partner.HasChargebacks,
@@ -137,30 +160,33 @@ public static class GetPublisherRevenueStats
                 NextPayoutInDays: 12,
                 TotalChargebacks: totalChargebacks,
                 RevenueGrowthChart: revenueChart,
-                TransferRecords: payouts
+                TransferRecords: transferRecords
             );
 
             return response;
         }
+
+        private static decimal CalculateProfit(decimal publisherPayout, decimal shareRatio)
+        {
+            if (shareRatio <= 0 || shareRatio >= 1) return 0m;
+
+            var total = publisherPayout / shareRatio;
+            return Math.Round(total - publisherPayout, 4, MidpointRounding.AwayFromZero);
+        }
     }
 
-    // 5. Endpoint
     public sealed class Endpoint : ICarterModule
     {
         public void AddRoutes(IEndpointRouteBuilder app)
         {
-            app.MapGet("/admin/publishers/{id:guid}/revenue-stats", async (
-                Guid id,
-                [FromQuery] DateTime? fromDate,
-                [FromQuery] DateTime? toDate,
+            app.MapGet("/admin/publishers/{publisherId:guid}/revenue-stats", async (
+                [AsParameters] Query query,
                 ISender sender,
                 CancellationToken cancellationToken) =>
             {
-                var query = new Query(id, fromDate, toDate);
                 var result = await sender.Send(query, cancellationToken);
                 return result.ToHttpResponse();
-            })
-            .RequireAuthorization();
+            });
         }
     }
 }
